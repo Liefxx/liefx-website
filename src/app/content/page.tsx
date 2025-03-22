@@ -1,3 +1,4 @@
+// src/app/content/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -19,116 +20,71 @@ export default function Content() {
   const [error, setError] = useState('');
 
   const channels = [
-    { id: 'liefx', name: 'Liefx', channelId: 'UC6PVHS7Iq-fJqMLpdebrhZQ' }, // Replace with actual channel ID
-    { id: 'liefsc', name: 'LiefSC', channelId: 'UCQ1MqH7fQKh428jtrHt3AqQ' }, // Replace with actual channel ID
-    { id: 'gffbud', name: 'GFFBud', channelId: 'UCNcPrGnjX40pc7hNhh1dZZA' }, // Replace with actual channel ID
-    { id: 'leafylongplays', name: 'LeafyLongplays', channelId: 'UCuoKmwfP_ZULNZi_FXlwpiA' } // Replace with actual channel ID
+    { id: 'liefx', name: 'Liefx', channelId: 'UC6PVHS7Iq-fJqMLpdebrhZQ' },
+    { id: 'liefsc', name: 'LiefSC', channelId: 'UCQ1MqH7fQKh428jtrHt3AqQ' },
+    { id: 'gffbud', name: 'GFFBud', channelId: 'UCNcPrGnjX40pc7hNhh1dZZA' },
+    { id: 'leafylongplays', name: 'LeafyLongplays', channelId: 'UCuoKmwfP_ZULNZi_FXlwpiA' }
   ];
 
   useEffect(() => {
     const fetchYouTubeVideos = async () => {
       setLoading(true);
       setError('');
-      
+
       try {
-        // In a production environment, you would use the YouTube Data API
-        // For this demo, we'll fetch from a public YouTube API endpoint
-        const apiKey = 'AIzaSyAr8odT2EKKqn6WYJJF6zz_EZcwIJmBaSU'; // This is a demo key with limited quota
         const channelId = channels.find(c => c.id === activeTab)?.channelId;
-        
-        const response = await fetch(
-          `https://www.googleapis.com/youtube/v3/search?key=${apiKey}&channelId=${channelId}&part=snippet,id&order=date&maxResults=12`
-        );
-        
+        if (!channelId) {
+          throw new Error('Invalid channel ID');
+        }
+
+        // Fetch from our API route (CORRECT PATH)
+        const response = await fetch(`/api/videos/${channelId}`);
+
         if (!response.ok) {
           throw new Error('Failed to fetch videos');
         }
-        
-        const data = await response.json();
-        
-        // Get video IDs for statistics
-        const videoIds = data.items
-          .filter((item: any) => item.id.kind === 'youtube#video')
-          .map((item: any) => item.id.videoId)
-          .join(',');
-        
-        // Fetch video statistics
-        const statsResponse = await fetch(
-          `https://www.googleapis.com/youtube/v3/videos?key=${apiKey}&id=${videoIds}&part=statistics`
-        );
-        
-        if (!statsResponse.ok) {
-          throw new Error('Failed to fetch video statistics');
-        }
-        
-        const statsData = await statsResponse.json();
-        
-        // Combine data
-        const videosWithStats = data.items
-          .filter((item: any) => item.id.kind === 'youtube#video')
-          .map((item: any) => {
-            const stats = statsData.items.find((stat: any) => stat.id === item.id.videoId);
-            return {
-              id: item.id.videoId,
-              title: item.snippet.title,
-              thumbnail: item.snippet.thumbnails.high.url,
-              publishedAt: new Date(item.snippet.publishedAt).toLocaleDateString(),
-              viewCount: stats ? formatViewCount(stats.statistics.viewCount) : '0',
-              channelTitle: item.snippet.channelTitle
-            };
-          });
-        
-        setVideos(videosWithStats);
+
+        const data: YouTubeVideo[] = await response.json();
+        setVideos(data);
+
       } catch (err) {
         console.error('Error fetching YouTube videos:', err);
         setError('Failed to load videos. Using placeholder data instead.');
-        
-        // Fallback to placeholder data
-        setVideos(getPlaceholderVideos(activeTab));
+        setVideos(getPlaceholderVideos(activeTab)); // Keep fallback
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchYouTubeVideos();
   }, [activeTab]);
-  
-  // Format view count (e.g., 1500 -> 1.5K)
-  const formatViewCount = (count: string): string => {
-    const num = parseInt(count, 10);
-    if (num >= 1000000) {
-      return (num / 1000000).toFixed(1) + 'M';
-    }
-    if (num >= 1000) {
-      return (num / 1000).toFixed(1) + 'K';
-    }
-    return num.toString();
-  };
-  
-  // Placeholder videos in case API fails
+
+
+
+  // Placeholder videos (no change needed here)
   const getPlaceholderVideos = (channel: string): YouTubeVideo[] => {
     const channelName = channels.find(c => c.id === channel)?.name || 'Liefx';
-    
+
     const placeholders = [];
     for (let i = 1; i <= 12; i++) {
       placeholders.push({
         id: `placeholder-${i}`,
         title: `${channelName} Video ${i} - Click to watch on YouTube`,
-        thumbnail: '/YTBanner_v1.png',
-        publishedAt: '2025-03-01',
+        thumbnail: '/YTBanner_v1.png', // Assumes this is in your /public folder
+        publishedAt: '2025-03-01', // Example date
         viewCount: `${Math.floor(Math.random() * 10000)}`,
         channelTitle: channelName
       });
     }
-    
+
     return placeholders;
   };
 
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl md:text-4xl font-bold mb-8 text-gray-800">Content Hub</h1>
-      
-      {/* Channel Tabs */}
+
+      {/* Channel Tabs (no change needed here) */}
       <div className="mb-8">
         <div className="flex flex-wrap border-b border-gray-200">
           {channels.map((channel) => (
@@ -146,8 +102,8 @@ export default function Content() {
           ))}
         </div>
       </div>
-      
-      {/* Channel Description */}
+
+      {/* Channel Description (no change needed here) */}
       <div className="mb-8">
         {activeTab === 'liefx' && (
           <p className="text-gray-600">
@@ -170,15 +126,15 @@ export default function Content() {
           </p>
         )}
       </div>
-      
-      {/* Loading State */}
+
+      {/* Loading State (no change needed here) */}
       {loading && (
         <div className="flex justify-center items-center py-20">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-primary"></div>
         </div>
       )}
-      
-      {/* Error Message */}
+
+      {/* Error Message (no change needed here) */}
       {error && (
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-8">
           <p className="text-yellow-700">
@@ -186,8 +142,8 @@ export default function Content() {
           </p>
         </div>
       )}
-      
-      {/* Videos Grid */}
+
+      {/* Videos Grid (no change needed here) */}
       {!loading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {videos.map((video) => (
@@ -221,11 +177,11 @@ export default function Content() {
           ))}
         </div>
       )}
-      
-      {/* Subscribe Button */}
+
+      {/* Subscribe Button (no change needed here) */}
       <div className="mt-12 text-center">
         <a
-          href={`https://www.youtube.com/${activeTab === 'liefx' ? '@LiefxRL' : activeTab === 'liefsc' ? '@LiefSC' : activeTab === 'gffbud' ? '@GFFBud' : '@LeafyLongplays'}`}
+           href={`https://www.youtube.com/${activeTab === 'liefx' ? '@LiefxRL' : activeTab === 'liefsc' ? '@LiefSC' : activeTab === 'gffbud' ? '@GFFBud' : '@LeafyLongplays'}`}
           target="_blank"
           rel="noopener noreferrer"
           className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-lg inline-flex items-center transition-colors"
