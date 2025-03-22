@@ -2,349 +2,401 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
 
-interface TwitchStreamStatus {
-  isLive: boolean;
-  viewerCount?: number;
-  title?: string;
-  game?: string;
-  thumbnailUrl?: string;
+interface Tweet {
+  id: string;
+  text: string;
+  created_at: string;
+  author: {
+    name: string;
+    username: string;
+    profile_image_url: string;
+  };
+  public_metrics: {
+    retweet_count: number;
+    reply_count: number;
+    like_count: number;
+    quote_count: number;
+  };
+  media?: {
+    type: string;
+    url: string;
+  }[];
 }
 
-export default function Livestreams() {
-  const [streamStatus, setStreamStatus] = useState<TwitchStreamStatus>({
-    isLive: false,
-  });
-  const [pastBroadcasts, setPastBroadcasts] = useState<any[]>([]);
-  const [schedule, setSchedule] = useState<any[]>([]);
-
-  // Check if Twitch stream is live
+export default function TwitterFeed() {
+  const [tweets, setTweets] = useState<Tweet[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  
+  // Twitter username
+  const twitterUsername = 'liefx';
+  
   useEffect(() => {
-    const checkTwitchStatus = async () => {
+    const fetchTwitterData = async () => {
+      setLoading(true);
+      setError('');
+      
       try {
-        // In a real implementation, this would use the Twitch API
-        // For now, we'll simulate with mock data
-        const isLive = Math.random() > 0.5;
-        setStreamStatus({
-          isLive,
-          viewerCount: isLive ? Math.floor(Math.random() * 1000) : undefined,
-          title: isLive ? 'RLCS Season X - North American Regional' : undefined,
-          game: isLive ? 'Rocket League' : undefined,
-          thumbnailUrl: isLive ? '/YTBanner_v1.png' : undefined
-        });
-
-        // Mock past broadcasts
-        setPastBroadcasts([
-          {
-            id: 'broadcast1',
-            title: 'Star Citizen Exploration & Mining',
-            date: '2 days ago',
-            duration: '3h 42m',
-            views: 1245,
-            thumbnail: '/YTBanner_v1.png',
-            game: 'Star Citizen'
-          },
-          {
-            id: 'broadcast2',
-            title: 'RLCS Season X - European Regional',
-            date: '5 days ago',
-            duration: '4h 15m',
-            views: 3782,
-            thumbnail: '/YTBanner_v1.png',
-            game: 'Rocket League'
-          },
-          {
-            id: 'broadcast3',
-            title: 'Casual Gaming & Chat',
-            date: '1 week ago',
-            duration: '2h 30m',
-            views: 987,
-            thumbnail: '/YTBanner_v1.png',
-            game: 'Just Chatting'
-          },
-          {
-            id: 'broadcast4',
-            title: 'Kingdom Come: Deliverance Playthrough',
-            date: '2 weeks ago',
-            duration: '3h 10m',
-            views: 1123,
-            thumbnail: '/YTBanner_v1.png',
-            game: 'Kingdom Come: Deliverance'
-          }
-        ]);
-
-        // Mock schedule
-        setSchedule([
-          {
-            id: 'schedule1',
-            title: 'RLCS Watch Party',
-            date: 'Tomorrow',
-            time: '3:00 PM EST',
-            game: 'Rocket League'
-          },
-          {
-            id: 'schedule2',
-            title: 'Star Citizen Update 4.0 Exploration',
-            date: 'Saturday',
-            time: '7:00 PM EST',
-            game: 'Star Citizen'
-          },
-          {
-            id: 'schedule3',
-            title: 'Podcast Recording - Special Guest',
-            date: 'Sunday',
-            time: '5:00 PM EST',
-            game: 'Just Chatting'
-          }
-        ]);
-      } catch (error) {
-        console.error('Error checking Twitch status:', error);
+        // In a production environment, you would use the Twitter API with proper authentication
+        // For this demo, we'll simulate the API response
+        const tweetsResponse = await simulateTwitterAPI(twitterUsername);
+        
+        if (tweetsResponse.data && tweetsResponse.data.length > 0) {
+          setTweets(tweetsResponse.data);
+        }
+      } catch (err) {
+        console.error('Error fetching Twitter data:', err);
+        setError('Failed to load Twitter data. Using placeholder data instead.');
+        
+        // Fallback to placeholder data
+        setTweets(getPlaceholderTweets());
+      } finally {
+        setLoading(false);
       }
     };
-
-    checkTwitchStatus();
-    const interval = setInterval(checkTwitchStatus, 60000); // Check every minute
-    return () => clearInterval(interval);
+    
+    fetchTwitterData();
   }, []);
+  
+  // Simulate Twitter API call (in production, use actual Twitter API)
+  const simulateTwitterAPI = async (username: string) => {
+    // This is a simulation function - in production, use actual Twitter API
+    return new Promise<any>((resolve) => {
+      setTimeout(() => {
+        resolve({
+          data: getPlaceholderTweets()
+        });
+      }, 500);
+    });
+  };
+  
+  // Format date (e.g., "2023-01-01T00:00:00Z" -> "Jan 1, 2023")
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    
+    // If it's today, show time
+    const today = new Date();
+    if (date.toDateString() === today.toDateString()) {
+      return date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit'
+      });
+    }
+    
+    // If it's this year, don't show year
+    if (date.getFullYear() === today.getFullYear()) {
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric'
+      });
+    }
+    
+    // Otherwise show full date
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+  
+  // Format metrics count (e.g., 1500 -> 1.5K)
+  const formatCount = (count: number): string => {
+    if (count >= 1000000) {
+      return (count / 1000000).toFixed(1) + 'M';
+    }
+    if (count >= 1000) {
+      return (count / 1000).toFixed(1) + 'K';
+    }
+    return count.toString();
+  };
+  
+  // Process tweet text to add links, hashtags, and mentions
+  const processTweetText = (text: string): JSX.Element => {
+    // Replace URLs with links
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const withUrls = text.split(urlRegex);
+    
+    // Replace hashtags and mentions
+    const parts = withUrls.map((part, index) => {
+      if (part.match(urlRegex)) {
+        return (
+          <a 
+            key={index} 
+            href={part} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-blue-500 hover:underline"
+          >
+            {part}
+          </a>
+        );
+      }
+      
+      // Process hashtags and mentions
+      const hashtagRegex = /#(\w+)/g;
+      const mentionRegex = /@(\w+)/g;
+      
+      let processed = part;
+      let elements: JSX.Element[] = [];
+      let lastIndex = 0;
+      
+      // Find all hashtags and mentions
+      const tokens: {type: 'hashtag' | 'mention', text: string, index: number}[] = [];
+      
+      let match;
+      while ((match = hashtagRegex.exec(part)) !== null) {
+        tokens.push({
+          type: 'hashtag',
+          text: match[0],
+          index: match.index
+        });
+      }
+      
+      while ((match = mentionRegex.exec(part)) !== null) {
+        tokens.push({
+          type: 'mention',
+          text: match[0],
+          index: match.index
+        });
+      }
+      
+      // Sort tokens by index
+      tokens.sort((a, b) => a.index - b.index);
+      
+      // Build elements
+      for (const token of tokens) {
+        // Add text before token
+        if (token.index > lastIndex) {
+          elements.push(
+            <span key={`text-${lastIndex}`}>
+              {part.substring(lastIndex, token.index)}
+            </span>
+          );
+        }
+        
+        // Add token
+        if (token.type === 'hashtag') {
+          elements.push(
+            <a 
+              key={`hashtag-${token.index}`} 
+              href={`https://twitter.com/hashtag/${token.text.substring(1)}`} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-500 hover:underline"
+            >
+              {token.text}
+            </a>
+          );
+        } else {
+          elements.push(
+            <a 
+              key={`mention-${token.index}`} 
+              href={`https://twitter.com/${token.text.substring(1)}`} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-500 hover:underline"
+            >
+              {token.text}
+            </a>
+          );
+        }
+        
+        lastIndex = token.index + token.text.length;
+      }
+      
+      // Add remaining text
+      if (lastIndex < part.length) {
+        elements.push(
+          <span key={`text-${lastIndex}`}>
+            {part.substring(lastIndex)}
+          </span>
+        );
+      }
+      
+      return elements.length > 0 ? elements : part;
+    });
+    
+    // Flatten the array
+    return <>{parts}</>;
+  };
+  
+  // Get placeholder tweets data
+  const getPlaceholderTweets = (): Tweet[] => {
+    const tweetTexts = [
+      "Just wrapped up another amazing RLCS broadcast! Thanks to everyone who tuned in. #RocketLeague #RLCS",
+      "Excited to announce I'll be casting the upcoming @RLEsports tournament next weekend! #RocketLeague",
+      "New Star Citizen video is up on my channel! Check out the latest 4.0 exploration gameplay. https://youtube.com/watch?v=example",
+      "Streaming some Rocket League ranked tonight at 7PM EST. Come hang out! https://twitch.tv/Liefx",
+      "Thanks to everyone who participated in yesterday's giveaway! Congrats to @RandomUser for winning the signed jersey!",
+      "Just hit Champion rank again this season! The grind continues. #RocketLeague #RankedGrind",
+      "What games are you all playing this weekend? Looking for some new recommendations!",
+      "New merch designs coming soon! Here's a sneak peek at what's coming to the store next month."
+    ];
+    
+    const tweets = [];
+    
+    for (let i = 0; i < tweetTexts.length; i++) {
+      const date = new Date();
+      date.setDate(date.getDate() - Math.floor(i / 2));
+      date.setHours(date.getHours() - (i % 2) * 6);
+      
+      tweets.push({
+        id: `placeholder-tweet-${i}`,
+        text: tweetTexts[i],
+        created_at: date.toISOString(),
+        author: {
+          name: 'Brody Moore',
+          username: twitterUsername,
+          profile_image_url: '/LiefLogoYT.png'
+        },
+        public_metrics: {
+          retweet_count: Math.floor(Math.random() * 50),
+          reply_count: Math.floor(Math.random() * 30),
+          like_count: Math.floor(Math.random() * 200) + 50,
+          quote_count: Math.floor(Math.random() * 10)
+        },
+        media: i % 3 === 0 ? [
+          {
+            type: 'photo',
+            url: '/YTBanner_v1.png'
+          }
+        ] : undefined
+      });
+    }
+    
+    return tweets;
+  };
 
   return (
-    <div className="container mx-auto">
-      <h1 className="text-3xl md:text-4xl font-bold mb-8 text-gray-800">Livestreams</h1>
+    <div className="w-full max-w-2xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-gray-800">Latest Tweets</h2>
+        <a
+          href={`https://twitter.com/${twitterUsername}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-500 hover:text-blue-600 font-semibold flex items-center"
+        >
+          <svg className="w-5 h-5 mr-1" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+          </svg>
+          Follow
+        </a>
+      </div>
       
-      {/* Live Stream Section */}
-      <section className="mb-12">
-        <div className="bg-gray-900 rounded-lg overflow-hidden shadow-xl">
-          <div className="relative">
-            {streamStatus.isLive ? (
-              <>
-                <div className="aspect-video w-full">
-                  <iframe
-                    src="https://player.twitch.tv/?channel=Liefx&parent=localhost&autoplay=true"
-                    height="100%"
-                    width="100%"
-                    className="w-full h-full"
-                    allowFullScreen={true}
-                  ></iframe>
+      {/* Loading State */}
+      {loading && (
+        <div className="flex justify-center items-center py-10">
+          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+      )}
+      
+      {/* Error Message */}
+      {error && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+          <p className="text-yellow-700">
+            {error}
+          </p>
+        </div>
+      )}
+      
+      {/* Tweets List */}
+      {!loading && (
+        <div className="space-y-4">
+          {tweets.map((tweet) => (
+            <div key={tweet.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+              <div className="p-4">
+                {/* Tweet Header */}
+                <div className="flex items-start mb-3">
+                  <div className="relative w-12 h-12 rounded-full overflow-hidden mr-3">
+                    <Image
+                      src={tweet.author.profile_image_url}
+                      alt={tweet.author.name}
+                      fill
+                      className="object-cover"
+                      unoptimized={tweet.author.profile_image_url.startsWith('http')}
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center">
+                      <span className="font-bold text-gray-900">{tweet.author.name}</span>
+                      <svg className="w-4 h-4 text-blue-500 ml-1" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.818-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.437 2.25c-.415-.165-.866-.25-1.336-.25-2.11 0-3.818 1.79-3.818 4 0 .494.083.964.237 1.4-1.272.65-2.147 2.018-2.147 3.6 0 1.495.782 2.798 1.942 3.486-.02.17-.032.34-.032.514 0 2.21 1.708 4 3.818 4 .47 0 .92-.086 1.335-.25.62 1.334 1.926 2.25 3.437 2.25 1.512 0 2.818-.916 3.437-2.25.415.163.865.248 1.336.248 2.11 0 3.818-1.79 3.818-4 0-.174-.012-.344-.033-.513 1.158-.687 1.943-1.99 1.943-3.484zm-6.616-3.334l-4.334 6.5c-.145.217-.382.334-.625.334-.143 0-.288-.04-.416-.126l-.115-.094-2.415-2.415c-.293-.293-.293-.768 0-1.06s.768-.294 1.06 0l1.77 1.767 3.825-5.74c.23-.345.696-.436 1.04-.207.346.23.44.696.21 1.04z"/>
+                      </svg>
+                    </div>
+                    <div className="text-gray-500">@{tweet.author.username}</div>
+                  </div>
+                  <div className="ml-auto text-gray-500 text-sm">
+                    {formatDate(tweet.created_at)}
+                  </div>
                 </div>
-                <div className="absolute top-4 left-4 bg-red-600 text-white text-sm px-3 py-1 rounded-full flex items-center">
-                  <div className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></div>
-                  LIVE
+                
+                {/* Tweet Content */}
+                <div className="mb-3 text-gray-800">
+                  {processTweetText(tweet.text)}
                 </div>
-              </>
-            ) : (
-              <div className="aspect-video w-full bg-gray-800 flex flex-col items-center justify-center text-white p-8">
-                <div className="mb-4">
-                  <Image 
-                    src="/LiefLogoYT.png" 
-                    alt="Liefx Logo" 
-                    width={100} 
-                    height={100} 
-                  />
-                </div>
-                <h2 className="text-2xl md:text-3xl font-bold mb-4 text-center">Currently Offline</h2>
-                <p className="text-gray-300 text-center max-w-2xl">
-                  Liefx is not streaming right now. Check the schedule below for upcoming streams or watch past broadcasts!
-                </p>
-              </div>
-            )}
-          </div>
-          
-          <div className="bg-gray-800 text-white p-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-xl md:text-2xl font-bold">
-                  {streamStatus.isLive ? streamStatus.title : 'Channel: Liefx'}
-                </h2>
-                {streamStatus.isLive && (
-                  <div className="flex items-center mt-2 text-gray-300">
-                    <span className="mr-4">{streamStatus.game}</span>
-                    <span>{streamStatus.viewerCount} viewers</span>
+                
+                {/* Tweet Media */}
+                {tweet.media && tweet.media.length > 0 && (
+                  <div className="mb-3 rounded-lg overflow-hidden">
+                    <div className="relative h-64 w-full">
+                      <Image
+                        src={tweet.media[0].url}
+                        alt="Tweet media"
+                        fill
+                        className="object-cover"
+                        unoptimized={tweet.media[0].url.startsWith('http')}
+                      />
+                    </div>
                   </div>
                 )}
-              </div>
-              <div className="flex gap-3">
-                <a 
-                  href="https://twitch.tv/Liefx" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded transition-colors"
-                >
-                  Follow on Twitch
-                </a>
-                <a 
-                  href="https://twitch.tv/Liefx/subscribe" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition-colors"
-                >
-                  Subscribe
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-      
-      {/* Stream Schedule */}
-      <section className="mb-12">
-        <h2 className="text-2xl font-bold mb-6 text-gray-800">Upcoming Streams</h2>
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stream Title</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Game</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {schedule.map((item) => (
-                  <tr key={item.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{item.date}</div>
-                      <div className="text-sm text-gray-500">{item.time}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">{item.title}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">{item.game}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <button className="text-green-600 hover:text-green-900 mr-4">Set Reminder</button>
-                      <a 
-                        href={`https://twitch.tv/Liefx`} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-purple-600 hover:text-purple-900"
-                      >
-                        Channel
-                      </a>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {schedule.length === 0 && (
-            <div className="py-8 text-center text-gray-500">
-              No upcoming streams scheduled at the moment.
-            </div>
-          )}
-        </div>
-      </section>
-      
-      {/* Past Broadcasts */}
-      <section className="mb-12">
-        <h2 className="text-2xl font-bold mb-6 text-gray-800">Past Broadcasts</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {pastBroadcasts.map((broadcast) => (
-            <div key={broadcast.id} className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
-              <div className="relative">
-                <Image 
-                  src={broadcast.thumbnail} 
-                  alt={broadcast.title} 
-                  width={400}
-                  height={225}
-                  className="w-full h-48 object-cover"
-                />
-                <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
-                  {broadcast.duration}
+                
+                {/* Tweet Actions */}
+                <div className="flex justify-between text-gray-500 pt-2 border-t border-gray-100">
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M14.046 2.242l-4.148-.01h-.002c-4.374 0-7.8 3.427-7.8 7.802 0 4.098 3.186 7.206 7.465 7.37v3.828c0 .108.044.286.12.403.142.225.384.347.632.347.138 0 .277-.038.402-.118.264-.168 6.473-4.14 8.088-5.506 1.902-1.61 3.04-3.97 3.043-6.312v-.017c-.006-4.367-3.43-7.787-7.8-7.788zm3.787 12.972c-1.134.96-4.862 3.405-6.772 4.643V16.67c0-.414-.335-.75-.75-.75h-.396c-3.66 0-6.318-2.476-6.318-5.886 0-3.534 2.768-6.302 6.3-6.302l4.147.01h.002c3.532 0 6.3 2.766 6.302 6.296-.003 1.91-.942 3.844-2.514 5.176z"/>
+                    </svg>
+                    <span>{formatCount(tweet.public_metrics.reply_count)}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M23.77 15.67c-.292-.293-.767-.293-1.06 0l-2.22 2.22V7.65c0-2.068-1.683-3.75-3.75-3.75h-5.85c-.414 0-.75.336-.75.75s.336.75.75.75h5.85c1.24 0 2.25 1.01 2.25 2.25v10.24l-2.22-2.22c-.293-.293-.768-.293-1.06 0s-.294.768 0 1.06l3.5 3.5c.145.147.337.22.53.22s.383-.072.53-.22l3.5-3.5c.294-.292.294-.767 0-1.06zm-10.66 3.28H7.26c-1.24 0-2.25-1.01-2.25-2.25V6.46l2.22 2.22c.148.147.34.22.532.22s.384-.073.53-.22c.293-.293.293-.768 0-1.06l-3.5-3.5c-.293-.294-.768-.294-1.06 0l-3.5 3.5c-.294.292-.294.767 0 1.06s.767.293 1.06 0l2.22-2.22V16.7c0 2.068 1.683 3.75 3.75 3.75h5.85c.414 0 .75-.336.75-.75s-.337-.75-.75-.75z"/>
+                    </svg>
+                    <span>{formatCount(tweet.public_metrics.retweet_count)}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 21.638h-.014C9.403 21.59 1.95 14.856 1.95 8.478c0-3.064 2.525-5.754 5.403-5.754 2.29 0 3.83 1.58 4.646 2.73.814-1.148 2.354-2.73 4.645-2.73 2.88 0 5.404 2.69 5.404 5.755 0 6.376-7.454 13.11-10.037 13.157H12z"/>
+                    </svg>
+                    <span>{formatCount(tweet.public_metrics.like_count)}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M17.53 7.47l-5-5c-.293-.293-.768-.293-1.06 0l-5 5c-.294.293-.294.768 0 1.06s.767.294 1.06 0l3.72-3.72V15c0 .414.336.75.75.75s.75-.336.75-.75V4.81l3.72 3.72c.146.147.338.22.53.22s.384-.072.53-.22c.293-.293.293-.767 0-1.06z"/>
+                      <path d="M19.708 21.944H4.292C3.028 21.944 2 20.916 2 19.652V14c0-.414.336-.75.75-.75s.75.336.75.75v5.652c0 .437.355.792.792.792h15.416c.437 0 .792-.355.792-.792V14c0-.414.336-.75.75-.75s.75.336.75.75v5.652c0 1.264-1.028 2.292-2.292 2.292z"/>
+                    </svg>
+                    <span>{formatCount(tweet.public_metrics.quote_count)}</span>
+                  </div>
                 </div>
-              </div>
-              <div className="p-4">
-                <h3 className="font-bold text-lg mb-1 line-clamp-2">{broadcast.title}</h3>
-                <div className="flex justify-between text-sm text-gray-500 mb-2">
-                  <span>{broadcast.game}</span>
-                  <span>{broadcast.views} views</span>
-                </div>
-                <div className="text-xs text-gray-500 mb-3">
-                  Streamed {broadcast.date}
-                </div>
-                <a 
-                  href={`https://twitch.tv/Liefx/videos`} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="text-purple-600 hover:text-purple-800 font-medium text-sm"
-                >
-                  Watch VOD →
-                </a>
               </div>
             </div>
           ))}
         </div>
-        <div className="text-center mt-6">
-          <a 
-            href="https://twitch.tv/Liefx/videos" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-purple-600 hover:text-purple-800 font-semibold"
-          >
-            View All Past Broadcasts →
-          </a>
-        </div>
-      </section>
+      )}
       
-      {/* Chat Integration */}
-      <section className="mb-12">
-        <h2 className="text-2xl font-bold mb-6 text-gray-800">Chat</h2>
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="h-96">
-            <iframe
-              src="https://www.twitch.tv/embed/Liefx/chat?parent=localhost"
-              height="100%"
-              width="100%"
-              className="w-full h-full"
-            ></iframe>
-          </div>
-        </div>
-      </section>
-      
-      {/* Notifications */}
-      <section className="bg-gray-100 rounded-lg p-6 mb-12">
-        <h2 className="text-2xl font-bold mb-4 text-gray-800">Get Notified</h2>
-        <p className="text-gray-600 mb-6">
-          Never miss a stream! Subscribe to get notifications when Liefx goes live.
-        </p>
-        <div className="flex flex-col md:flex-row gap-4">
-          <a 
-            href="https://twitch.tv/Liefx" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center"
-          >
-            <svg className="h-6 w-6 mr-2" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/>
-            </svg>
-            Follow on Twitch
-          </a>
-          <a 
-            href="https://twitter.com/liefx" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="bg-blue-400 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center"
-          >
-            <svg className="h-6 w-6 mr-2" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723 10.054 10.054 0 01-3.127 1.184 4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
-            </svg>
-            Follow on Twitter
-          </a>
-          <a 
-            href="https://discord.gg/liefx" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center"
-          >
-            <svg className="h-6 w-6 mr-2" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/>
-            </svg>
-            Join Discord
-          </a>
-        </div>
-      </section>
+      {/* View More Button */}
+      <div className="mt-6 text-center">
+        <a
+          href={`https://twitter.com/${twitterUsername}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-block bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-full transition-colors"
+        >
+          View More Tweets
+        </a>
+      </div>
     </div>
   );
 }

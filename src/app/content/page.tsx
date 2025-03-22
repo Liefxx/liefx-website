@@ -19,10 +19,10 @@ export default function Content() {
   const [error, setError] = useState('');
 
   const channels = [
-    { id: 'liefx', name: 'Liefx', channelId: 'UCzFaugSVwkYIQM-bp-9KcFA' }, // Replace with actual channel ID
-    { id: 'liefsc', name: 'LiefSC', channelId: 'UCzFaugSVwkYIQM-bp-9KcFA' }, // Replace with actual channel ID
-    { id: 'gffbud', name: 'GFFBud', channelId: 'UCzFaugSVwkYIQM-bp-9KcFA' }, // Replace with actual channel ID
-    { id: 'leafylongplays', name: 'LeafyLongplays', channelId: 'UCzFaugSVwkYIQM-bp-9KcFA' } // Replace with actual channel ID
+    { id: 'liefx', name: 'Liefx', channelId: 'UC6PVHS7Iq-fJqMLpdebrhZQ' }, // Replace with actual channel ID
+    { id: 'liefsc', name: 'LiefSC', channelId: 'UCQ1MqH7fQKh428jtrHt3AqQ' }, // Replace with actual channel ID
+    { id: 'gffbud', name: 'GFFBud', channelId: 'UCNcPrGnjX40pc7hNhh1dZZA' }, // Replace with actual channel ID
+    { id: 'leafylongplays', name: 'LeafyLongplays', channelId: 'UCuoKmwfP_ZULNZi_FXlwpiA' } // Replace with actual channel ID
   ];
 
   useEffect(() => {
@@ -151,7 +151,7 @@ export default function Content() {
       <div className="mb-8">
         {activeTab === 'liefx' && (
           <p className="text-gray-600">
-            The main Liefx channel featuring Rocket League content, RLCS casting highlights, and gaming news.
+            My main channel. Gaming, with a focus on narrative gameplay and game design philosophy!
           </p>
         )}
         {activeTab === 'liefsc' && (
@@ -166,7 +166,7 @@ export default function Content() {
         )}
         {activeTab === 'leafylongplays' && (
           <p className="text-gray-600">
-            Full playthroughs and longform content of story-driven games and adventures.
+            Relaxing playthroughs, no commentary. Perfect background content!
           </p>
         )}
       </div>
