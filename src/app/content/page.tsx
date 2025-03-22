@@ -15,14 +15,14 @@ interface YouTubeVideo {
 }
 
 export default function Content() {
-    const [activeTab, setActiveTab] = useState('all');
+    const [activeTab, setActiveTab] = useState('all'); // Start with "All" active
     const [videos, setVideos] = useState<YouTubeVideo[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [viewedVideos, setViewedVideos] = useState<string[]>([]);
 
     const channels = [
-        { id: 'all', name: 'All', channelId: '' },
+        { id: 'all', name: 'All', channelId: '' }, // Add "All" tab. channelId is unused for "All"
         { id: 'liefx', name: 'Liefx', channelId: 'UC6PVHS7Iq-fJqMLpdebrhZQ' },
         { id: 'liefsc', name: 'LiefSC', channelId: 'UCQ1MqH7fQKh428jtrHt3AqQ' },
         { id: 'gffbud', name: 'GFFBud', channelId: 'UCNcPrGnjX40pc7hNhh1dZZA' },
@@ -251,19 +251,19 @@ export default function Content() {
                                 <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
                                     {video.viewCount} views
                                 </div>
-                                {/* "NEW" Label */}
-                                {isNewVideo(video) && (
-                                    <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded font-bold">
-                                        NEW
-                                    </div>
-                                )}
                             </div>
                             <div className="p-4">
                                 <h3 className="font-bold text-lg mb-1 line-clamp-2">{video.title}</h3>
                                 <div className="flex justify-between text-sm text-gray-500">
-                                    <span>{video.channelTitle}</span>
-                                    <span>{video.publishedAt}</span>
-                                </div>
+                                <span>{video.channelTitle}</span>
+                {/* "NEW" Label - Inline */}
+                {isNewVideo(video) && (
+                  <span className="bg-red-600 text-white text-xs px-2 py-1 rounded font-bold ml-2">
+                    NEW
+                  </span>
+                )}
+                <span>{video.publishedAt}</span>
+              </div>
                             </div>
                         </a>
                     ))}
