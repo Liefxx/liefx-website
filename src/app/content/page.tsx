@@ -8,19 +8,21 @@ interface YouTubeVideo {
     id: string;
     title: string;
     thumbnail: string;
-    publishedAt: string;
+    publishedAt: string; // Keep this as string for display
+    publishedAtTimestamp: number; // Add this for calculations
     viewCount: string;
     channelTitle: string;
 }
 
 export default function Content() {
-    const [activeTab, setActiveTab] = useState('all'); // Start with "All" active
+    const [activeTab, setActiveTab] = useState('all');
     const [videos, setVideos] = useState<YouTubeVideo[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [viewedVideos, setViewedVideos] = useState<string[]>([]);
 
     const channels = [
-        { id: 'all', name: 'All', channelId: '' }, // Add "All" tab. channelId is unused for "All"
+        { id: 'all', name: 'All', channelId: '' },
         { id: 'liefx', name: 'Liefx', channelId: 'UC6PVHS7Iq-fJqMLpdebrhZQ' },
         { id: 'liefsc', name: 'LiefSC', channelId: 'UCQ1MqH7fQKh428jtrHt3AqQ' },
         { id: 'gffbud', name: 'GFFBud', channelId: 'UCNcPrGnjX40pc7hNhh1dZZA' },
@@ -28,34 +30,46 @@ export default function Content() {
     ];
 
     useEffect(() => {
+        // Load viewed video IDs from local storage
+        const storedViewedVideos = localStorage.getItem('viewedVideos');
+        if (storedViewedVideos) {
+            setViewedVideos(JSON.parse(storedViewedVideos));
+        }
+    }, []); // Empty dependency array: runs only once on mount
+
+    useEffect(() => {
         const fetchYouTubeVideos = async () => {
             setLoading(true);
             setError('');
 
             try {
+                let fetchedVideos: YouTubeVideo[] = [];
+
                 if (activeTab === 'all') {
                     // Fetch videos from ALL channels
                     const allVideos = await Promise.all(
                         channels.filter(c => c.id !== 'all').map(async (channel) => {
                             const response = await fetch(`/api/videos/${channel.channelId}`);
                             if (!response.ok) {
-                                // Don't throw here; just return an empty array for this channel
                                 console.error(`Failed to fetch videos for channel ${channel.name}`);
                                 return [];
                             }
-                            const data: YouTubeVideo[] = await response.json();
-                            return data;
+                            const data: any[] = await response.json(); // Use any[] temporarily
+                            // Add publishedAtTimestamp to each video
+                            const videosWithTimestamps = data.map(v => ({
+                                ...v,
+                                publishedAtTimestamp: new Date(v.publishedAt).getTime(),
+                            }));
+
+                            return videosWithTimestamps;
                         })
                     );
+                    fetchedVideos = allVideos.flat()
+                        .sort((a, b) => b.publishedAtTimestamp - a.publishedAtTimestamp);
 
-                    // Flatten the array of arrays, sort by date, and take the latest 12
-                    const combinedVideos = allVideos.flat()
-                        .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
-                        .slice(0, 12);
 
-                    setVideos(combinedVideos);
                 } else {
-                    // Fetch videos from a SINGLE channel (as before)
+                    // Fetch videos from a SINGLE channel
                     const channelId = channels.find(c => c.id === activeTab)?.channelId;
                     if (!channelId) {
                         throw new Error('Invalid channel ID');
@@ -67,13 +81,19 @@ export default function Content() {
                         throw new Error('Failed to fetch videos');
                     }
 
-                    const data: YouTubeVideo[] = await response.json();
-                    setVideos(data);
+                    const data: any[] = await response.json();
+                      // Add publishedAtTimestamp to each video
+                    fetchedVideos = data.map(v => ({
+                        ...v,
+                        publishedAtTimestamp: new Date(v.publishedAt).getTime(),
+                    }));
                 }
+                setVideos(fetchedVideos);
+
             } catch (err) {
                 console.error('Error fetching YouTube videos:', err);
                 setError('Failed to load videos. Using placeholder data instead.');
-                setVideos(getPlaceholderVideos(activeTab)); // Keep fallback
+                setVideos(getPlaceholderVideos(activeTab)); // Use updated placeholders
             } finally {
                 setLoading(false);
             }
@@ -82,35 +102,66 @@ export default function Content() {
         fetchYouTubeVideos();
     }, [activeTab]);
 
-
-
-      // Placeholder videos
+    // Placeholder videos (updated with timestamps)
     const getPlaceholderVideos = (channel: string): YouTubeVideo[] => {
         let channelName = channels.find(c => c.id === channel)?.name || 'Liefx';
         if (channel === 'all') {
-          channelName = 'Placeholder'; // Use a generic name for "All" placeholders
+            channelName = 'Placeholder';
         }
-    
+
         const placeholders = [];
+        const now = Date.now();
         for (let i = 1; i <= 12; i++) {
-          placeholders.push({
-            id: `placeholder-${i}`,
-            title: `${channelName} Video ${i} - Click to watch on YouTube`,
-            thumbnail: '/YTBanner_v1.png',
-            publishedAt: '2025-03-01',
-            viewCount: `${Math.floor(Math.random() * 10000)}`,
-            channelTitle: channelName
-          });
+            placeholders.push({
+                id: `placeholder-${i}`,
+                title: `${channelName} Video ${i} - Click to watch on YouTube`,
+                thumbnail: '/YTBanner_v1.png',
+                publishedAt: new Date(now - (i * 24 * 60 * 60 * 1000)).toLocaleDateString(), // Simulate recent dates
+                publishedAtTimestamp: now - (i * 24 * 60 * 60 * 1000), // i days ago
+                viewCount: `${Math.floor(Math.random() * 10000)}`,
+                channelTitle: channelName
+            });
         }
-    
+
         return placeholders;
-      };
+    };
+
+
+
+    // Function to check if a video should have the "NEW" label
+    const isNewVideo = (video: YouTubeVideo) => {
+        if (viewedVideos.includes(video.id)) {
+            return false; // Already viewed
+        }
+
+        const now = Date.now();
+        const thirtyDaysAgo = now - (30 * 24 * 60 * 60 * 1000);
+        const publishedTime = video.publishedAtTimestamp;
+
+        if (publishedTime > thirtyDaysAgo) {
+            return true; // Less than 30 days old
+        } else {
+            // Count videos newer than this one within the last 30 days
+            const recentNewerVideos = videos.filter(v => v.publishedAtTimestamp > thirtyDaysAgo && v.publishedAtTimestamp > publishedTime).length;
+            return recentNewerVideos < 3; // Show "NEW" if fewer than 3 newer videos in last 30 days
+        }
+    };
+
+    // Function to handle video clicks and update local storage
+    const handleVideoClick = (videoId: string) => {
+        if (!viewedVideos.includes(videoId)) {
+            const updatedViewedVideos = [...viewedVideos, videoId];
+            setViewedVideos(updatedViewedVideos);
+            localStorage.setItem('viewedVideos', JSON.stringify(updatedViewedVideos));
+        }
+    };
+
 
     return (
         <div className="container mx-auto px-4 py-8">
             <h1 className="text-3xl md:text-4xl font-bold mb-8 text-gray-800">Content Hub</h1>
 
-            {/* Channel Tabs (Restored original styling) */}
+            {/* Channel Tabs */}
             <div className="mb-8">
                 <div className="flex flex-wrap border-b border-gray-200">
                     {channels.map((channel) => (
@@ -121,7 +172,10 @@ export default function Content() {
                                     ? 'border-b-2 border-brand-primary text-brand-primary'
                                     : 'text-gray-600 hover:text-gray-800'
                             }`}
-                            onClick={() => setActiveTab(channel.id)}
+                            onClick={() => {
+                                console.log("Tab clicked:", channel.id);
+                                setActiveTab(channel.id);
+                            }}
                         >
                             {channel.name}
                         </button>
@@ -129,7 +183,7 @@ export default function Content() {
                 </div>
             </div>
 
-            {/* Channel Description (Added "All" description) */}
+            {/* Channel Description */}
             <div className="mb-8">
                 {activeTab === 'all' && (
                     <p className="text-gray-600">
@@ -184,6 +238,7 @@ export default function Content() {
                             target="_blank"
                             rel="noopener noreferrer"
                             className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow"
+                            onClick={() => handleVideoClick(video.id)} // Add click handler
                         >
                             <div className="relative h-48">
                                 <Image
@@ -196,6 +251,12 @@ export default function Content() {
                                 <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
                                     {video.viewCount} views
                                 </div>
+                                {/* "NEW" Label */}
+                                {isNewVideo(video) && (
+                                    <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded font-bold">
+                                        NEW
+                                    </div>
+                                )}
                             </div>
                             <div className="p-4">
                                 <h3 className="font-bold text-lg mb-1 line-clamp-2">{video.title}</h3>
@@ -208,7 +269,8 @@ export default function Content() {
                     ))}
                 </div>
             )}
-             {/* Subscribe Button (Added "All" Option)*/}
+
+            {/* Subscribe Button */}
             <div className="mt-12 text-center">
                 {activeTab !== 'all' && (
                 <a
