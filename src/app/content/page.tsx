@@ -33,7 +33,7 @@ export default function Content() {
       try {
         // In a production environment, you would use the YouTube Data API
         // For this demo, we'll fetch from a public YouTube API endpoint
-        const apiKey = 'AIzaSyDAqOQVMpOQgJYQxKsJJVpVMGJWYZm-Xfw'; // This is a demo key with limited quota
+        const apiKey = 'AIzaSyAr8odT2EKKqn6WYJJF6zz_EZcwIJmBaSU'; // This is a demo key with limited quota
         const channelId = channels.find(c => c.id === activeTab)?.channelId;
         
         const response = await fetch(
