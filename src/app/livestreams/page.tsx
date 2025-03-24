@@ -241,7 +241,7 @@ export default function Livestreams() {
       <section className="mb-12">
         <h2 className="text-2xl font-bold mb-6 text-gray-800">Chat</h2>
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="h-96">
+          <div>
             {/* Chat iframe */}
             {iframeSrc && (
                 <iframe
