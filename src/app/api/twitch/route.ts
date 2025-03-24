@@ -1,45 +1,90 @@
 // src/app/api/twitch/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { TwitchStreamStatus, PastBroadcast, ScheduleItem } from '@/types'; // Correct import
+import { cookies } from 'next/headers'
+
+async function getAccessToken(clientId: string, clientSecret: string) {
+    const cookieStore = cookies()
+    let accessToken = cookieStore.get('twitchAccessToken')?.value
+    const refreshToken = cookieStore.get('twitchRefreshToken')?.value
+
+    if (!accessToken && !refreshToken) {
+        return null; // No token available
+    }
+
+    if(!accessToken && refreshToken) {
+      // Need to refresh
+       const refreshResponse = await fetch(
+        `https://id.twitch.tv/oauth2/token`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            grant_type: 'refresh_token',
+            refresh_token: refreshToken,
+            client_id: clientId,
+            client_secret: clientSecret,
+          }),
+        }
+      );
+
+      if (!refreshResponse.ok) {
+          const errorText = await refreshResponse.text();
+          console.error(`[API] Failed to refresh token: ${refreshResponse.status} - ${errorText}`);
+            // Delete cookies
+            cookies().delete('twitchAccessToken')
+            cookies().delete('twitchRefreshToken')
+          return null
+      }
+
+      const refreshData = await refreshResponse.json();
+      accessToken = refreshData.access_token;
+
+        // Store the new access token and refresh token
+        cookies().set('twitchAccessToken', refreshData.access_token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: refreshData.expires_in,
+          path: '/',
+      });
+
+      cookies().set('twitchRefreshToken', refreshData.refresh_token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/',
+      });
+    }
+
+    return accessToken;
+}
 
 export async function GET(request: NextRequest) {
-  const clientId = process.env.TWITCH_CLIENT_ID;
-  const clientSecret = process.env.TWITCH_CLIENT_SECRET;
-  const userLogin = process.env.TWITCH_USER_LOGIN;
+    const clientId = process.env.TWITCH_CLIENT_ID;
+    const clientSecret = process.env.TWITCH_CLIENT_SECRET;
+    const userLogin = process.env.TWITCH_USER_LOGIN;
 
-  if (!clientId || !clientSecret || !userLogin) {
-    console.error("[API] Missing Twitch credentials. Check .env.local and Vercel settings.");
-    return NextResponse.json(
-      { error: 'Missing Twitch credentials' },
-      { status: 500 }
-    );
+    if (!clientId || !clientSecret || !userLogin) {
+        console.error("[API] Missing Twitch credentials. Check .env.local and Vercel settings.");
+        return NextResponse.json(
+            { error: 'Missing Twitch credentials' },
+            { status: 500 }
+        );
+    }
+
+    const accessToken = await getAccessToken(clientId, clientSecret);
+
+  if (!accessToken) {
+    // Redirect to Twitch for authorization
+    const redirectUri = process.env.NEXT_PUBLIC_VERCEL_URL ? `${process.env.NEXT_PUBLIC_VERCEL_URL}/api/twitch/auth` : 'http://localhost:3000/api/twitch/auth';
+    const authUrl = `https://id.twitch.tv/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=channel:read:schedule user:read:broadcast`; // Add your required scopes
+     return NextResponse.redirect(authUrl); // Important! Redirect, don't return JSON
   }
 
   try {
-    // 1. Get an access token
-    const tokenResponse = await fetch(
-      `https://id.twitch.tv/oauth2/token?client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      }
-    );
-
-    if (!tokenResponse.ok) {
-        if (tokenResponse.status === 429) { // Check for rate limit
-            console.error("[API] Twitch API Rate Limit Exceeded (Token)");
-            return NextResponse.json({ error: 'Twitch API Rate Limit Exceeded. Please try again later.' }, { status: 429 });
-        }
-      const errorText = await tokenResponse.text();
-      console.error(`[API] Failed to get Twitch access token: ${tokenResponse.status} - ${errorText}`);
-      return NextResponse.json({ error: 'Failed to get Twitch access token' }, { status: 500 });
-    }
-
-    const tokenData = await tokenResponse.json();
-    const accessToken = tokenData.access_token;
-    console.log("[API] Got access token:", accessToken); // Log the access token (for debugging)
 
     // 2. Get user information (for profile picture, etc., and user ID)
     const userResponse = await fetch(
