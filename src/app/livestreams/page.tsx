@@ -1,7 +1,7 @@
 // src/app/livestreams/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react'; // Import useId
 import Image from 'next/image';
 import Link from 'next/link';
 import { TwitchStreamStatus, PastBroadcast, ScheduleItem } from '@/types';
@@ -12,7 +12,10 @@ export default function Livestreams() {
   });
   const [pastBroadcasts, setPastBroadcasts] = useState<PastBroadcast[]>([]);
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
-    const [iframeSrc, setIframeSrc] = useState(''); // Add state for *both* iframe srcs
+  const [iframeSrc, setIframeSrc] = useState('');
+    const liveId = useId();
+    const chatId = useId();
+
 
   useEffect(() => {
     const fetchTwitchData = async () => {
@@ -35,11 +38,13 @@ export default function Livestreams() {
     fetchTwitchData();
     const interval = setInterval(fetchTwitchData, 60000); // Check every minute
 
-    // Construct the iframe src *inside* useEffect, after checking for window
+      // Construct the iframe src *inside* useEffect, after checking for window
+      //and the vercel URL.
       if (typeof window !== 'undefined') {
-        const liveSrc = `https://player.twitch.tv/?channel=${process.env.NEXT_PUBLIC_TWITCH_USER_LOGIN}&parent=localhost&parent=${new URL(window.location.href).hostname}&autoplay=true`;
-        const chatSrc = `https://www.twitch.tv/embed/${process.env.NEXT_PUBLIC_TWITCH_USER_LOGIN}/chat?parent=localhost&parent=${new URL(window.location.href).hostname}`;
-          setIframeSrc(liveSrc); //set the default to the live stream
+          const vercelUrl = process.env.NEXT_PUBLIC_VERCEL_URL ? process.env.NEXT_PUBLIC_VERCEL_URL : "localhost";
+          const liveSrc = `https://player.twitch.tv/?channel=<span class="math-inline">\{process\.env\.NEXT\_PUBLIC\_TWITCH\_USER\_LOGIN\}&parent\=localhost&parent\=</span>{vercelUrl}`;
+          const chatSrc = `https://www.twitch.tv/embed/<span class="math-inline">\{process\.env\.NEXT\_PUBLIC\_TWITCH\_USER\_LOGIN\}/chat?parent\=localhost&parent\=</span>{vercelUrl}`;
+          setIframeSrc(liveSrc); // Set default to the live stream
     }
 
     return () => clearInterval(interval);
@@ -59,6 +64,7 @@ export default function Livestreams() {
                   {/* Use the iframeSrc state here */}
                   {iframeSrc && (
                     <iframe
+                      id={liveId}
                       src={iframeSrc}
                       height="100%"
                       width="100%"
@@ -241,15 +247,16 @@ export default function Livestreams() {
       <section className="mb-12">
         <h2 className="text-2xl font-bold mb-6 text-gray-800">Chat</h2>
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div>
+          <div className="h-96">
             {/* Chat iframe */}
             {iframeSrc && (
                 <iframe
-                    src={`https://www.twitch.tv/embed/${process.env.NEXT_PUBLIC_TWITCH_USER_LOGIN}/chat?parent=localhost&parent=${new URL(window.location.href).hostname}`}
+                    id={chatId}
+                    src={`https://www.twitch.tv/embed/<span class="math-inline">\{process\.env\.NEXT\_PUBLIC\_TWITCH\_USER\_LOGIN\}/chat?parent\=localhost&parent\=</span>{new URL(window.location.href).hostname}`}
                     height="100%"
                     width="100%"
                     className="w-full h-full"
-                ></iframe>
+                    ></iframe>
             )}
           </div>
         </div>
