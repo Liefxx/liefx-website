@@ -4,32 +4,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-
-interface TwitchStreamStatus {
-  isLive: boolean;
-  viewerCount?: number;
-  title?: string;
-  game?: string;
-  thumbnailUrl?: string;
-}
-
-interface PastBroadcast {
-  id: string;
-  title: string;
-  date: string;
-  duration: string;
-  views: number;
-  thumbnail: string;
-  game: string;
-}
-
-interface ScheduleItem {
-  id: string;
-  title: string;
-  date: string;
-  time: string;
-  game: string;
-}
+import { TwitchStreamStatus, PastBroadcast, ScheduleItem } from '../../../../types'; // IMPORT HERE
 
 export default function Livestreams() {
   const [streamStatus, setStreamStatus] = useState<TwitchStreamStatus>({
