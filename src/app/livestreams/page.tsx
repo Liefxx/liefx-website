@@ -157,38 +157,4 @@ export default function Livestreams() {
                   <tr key={item.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{item.date}</div>
-                      <div className="text-sm text-gray-500">{item.time}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">{item.title}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">{item.game}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <button className="text-green-600 hover:text-green-900 mr-4">Set Reminder</button>
-                      <a
-                         href={`https://twitch.tv/${process.env.NEXT_PUBLIC_TWITCH_USER_LOGIN}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-purple-600 hover:text-purple-900"
-                      >
-                        Channel
-                      </a>
-                    </td>
-                  </tr>
-                )) : (
-                    <tr>
-                        <td colSpan={4} className="text-center text-gray-500 py-4">No upcoming streams scheduled at the moment.</td>
-                    </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-        </div>
-      </section>
-
-      {/* Past Broadcasts */}
-      <section className="mb-12">
-        <h2 className="text
+                      <div className="text-sm text-gray-5
