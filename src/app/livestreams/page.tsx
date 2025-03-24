@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { TwitchStreamStatus, PastBroadcast, ScheduleItem } from '../../../../types'; // IMPORT HERE
+import { TwitchStreamStatus, PastBroadcast, ScheduleItem } from '@/types';
 
 export default function Livestreams() {
   const [streamStatus, setStreamStatus] = useState<TwitchStreamStatus>({
