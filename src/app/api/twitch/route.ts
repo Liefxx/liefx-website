@@ -1,7 +1,7 @@
 // src/app/api/twitch/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { decode } from 'html-entities';
-import { TwitchStreamStatus, PastBroadcast, ScheduleItem } from '../../../../types';
+import { TwitchStreamStatus, PastBroadcast, ScheduleItem } from '@/types';
 
 export async function GET(request: NextRequest) {
   const clientId = process.env.TWITCH_CLIENT_ID;
