@@ -12,6 +12,7 @@ export default function Livestreams() {
   });
   const [pastBroadcasts, setPastBroadcasts] = useState<PastBroadcast[]>([]);
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
+    const [iframeSrc, setIframeSrc] = useState(''); // Add state for *both* iframe srcs
 
   useEffect(() => {
     const fetchTwitchData = async () => {
@@ -25,6 +26,7 @@ export default function Livestreams() {
         setStreamStatus(data.streamStatus);
         setPastBroadcasts(data.pastBroadcasts);
         setSchedule(data.schedule);
+
       } catch (error) {
         console.error('Error fetching Twitch data:', error);
       }
@@ -32,6 +34,14 @@ export default function Livestreams() {
 
     fetchTwitchData();
     const interval = setInterval(fetchTwitchData, 60000); // Check every minute
+
+    // Construct the iframe src *inside* useEffect, after checking for window
+      if (typeof window !== 'undefined') {
+        const liveSrc = `https://player.twitch.tv/?channel=${process.env.NEXT_PUBLIC_TWITCH_USER_LOGIN}&parent=localhost&parent=${new URL(window.location.href).hostname}&autoplay=true`;
+        const chatSrc = `https://www.twitch.tv/embed/${process.env.NEXT_PUBLIC_TWITCH_USER_LOGIN}/chat?parent=localhost&parent=${new URL(window.location.href).hostname}`;
+          setIframeSrc(liveSrc); //set the default to the live stream
+    }
+
     return () => clearInterval(interval);
   }, []);
 
@@ -46,13 +56,16 @@ export default function Livestreams() {
             {streamStatus.isLive ? (
               <>
                 <div className="aspect-video w-full">
-                  <iframe
-                    src={`https://player.twitch.tv/?channel=${process.env.NEXT_PUBLIC_TWITCH_USER_LOGIN}&parent=localhost&parent=${new URL(window.location.href).hostname}&autoplay=true`}
-                    height="100%"
-                    width="100%"
-                    className="w-full h-full"
-                    allowFullScreen
-                  ></iframe>
+                  {/* Use the iframeSrc state here */}
+                  {iframeSrc && (
+                    <iframe
+                      src={iframeSrc}
+                      height="100%"
+                      width="100%"
+                      className="w-full h-full"
+                      allowFullScreen
+                    ></iframe>
+                  )}
                 </div>
                 <div className="absolute top-4 left-4 bg-red-600 text-white text-sm px-3 py-1 rounded-full flex items-center">
                   <div className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></div>
@@ -174,6 +187,7 @@ export default function Livestreams() {
           </div>
         </div>
       </section>
+
       {/* Past Broadcasts */}
       <section className="mb-12">
         <h2 className="text-2xl font-bold mb-6 text-gray-800">Past Broadcasts</h2>
@@ -228,12 +242,15 @@ export default function Livestreams() {
         <h2 className="text-2xl font-bold mb-6 text-gray-800">Chat</h2>
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           <div className="h-96">
-            <iframe
-              src={`https://www.twitch.tv/embed/${process.env.NEXT_PUBLIC_TWITCH_USER_LOGIN}/chat?parent=localhost&parent=${new URL(window.location.href).hostname}`}
-              height="100%"
-              width="100%"
-              className="w-full h-full"
-            ></iframe>
+            {/* Chat iframe */}
+            {iframeSrc && (
+                <iframe
+                    src={`https://www.twitch.tv/embed/${process.env.NEXT_PUBLIC_TWITCH_USER_LOGIN}/chat?parent=localhost&parent=${new URL(window.location.href).hostname}`}
+                    height="100%"
+                    width="100%"
+                    className="w-full h-full"
+                ></iframe>
+            )}
           </div>
         </div>
       </section>
