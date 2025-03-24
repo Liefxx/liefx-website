@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
         }
       }
     )
-
+  let schedule: ScheduleItem[] = [];
     if (!scheduleResponse.ok) {
         try {
             const errorData = await scheduleResponse.json(); // Try to parse as JSON
@@ -138,12 +138,12 @@ export async function GET(request: NextRequest) {
         const scheduleData = await scheduleResponse.json()
         console.log("[API] Schedule data:", scheduleData); // Log schedule data
 
-        const schedule = scheduleData.data?.segments?.map((item: any) => ({
-        id: item.id,
-        title: item.title,
-        date: new Date(item.start_time).toLocaleDateString(),
-        time: new Date(item.start_time).toLocaleTimeString(),
-        game: item.category?.name || 'Unknown'
+        schedule = scheduleData.data?.segments?.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          date: new Date(item.start_time).toLocaleDateString(),
+          time: new Date(item.start_time).toLocaleTimeString(),
+          game: item.category?.name || 'Unknown'
         })) ?? []
     }
 
