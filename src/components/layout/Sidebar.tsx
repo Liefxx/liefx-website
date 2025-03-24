@@ -1,50 +1,58 @@
+// src/components/layout/Sidebar.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-
-interface TwitchStreamStatus {
-  isLive: boolean;
-  viewerCount?: number;
-}
+import { TwitchStreamStatus } from '@/types'; // Correct import using absolute path
 
 export default function Sidebar() {
   const [streamStatus, setStreamStatus] = useState<TwitchStreamStatus>({
     isLive: false,
   });
   const [isScrolled, setIsScrolled] = useState(false);
+    const [iframeSrc, setIframeSrc] = useState('');
 
-  // Check if Twitch stream is live
   useEffect(() => {
-    const checkTwitchStatus = async () => {
+    const fetchTwitchStatus = async () => {
       try {
-        // In a real implementation, this would use the Twitch API
-        // For now, we'll simulate with a random status
-        const isLive = Math.random() > 0.5;
-        setStreamStatus({
-          isLive,
-          viewerCount: isLive ? Math.floor(Math.random() * 1000) : undefined,
-        });
+        const response = await fetch('/api/twitch'); // Fetch from your API route
+        if (!response.ok) {
+          console.error(`Failed to fetch Twitch status: ${response.status}`);
+          return; // Don't update state if there's an error
+        }
+        const data = await response.json();
+        setStreamStatus(data.streamStatus); // Update state with the actual stream status
       } catch (error) {
-        console.error('Error checking Twitch status:', error);
+        console.error('Error fetching Twitch status:', error);
       }
     };
 
-    checkTwitchStatus();
-    const interval = setInterval(checkTwitchStatus, 60000); // Check every minute
-    return () => clearInterval(interval);
-  }, []);
+      fetchTwitchStatus();
+    const interval = setInterval(fetchTwitchStatus, 60000); // Check every minute
 
-  // Track scroll position
-  useEffect(() => {
+    // Construct the iframe src *inside* useEffect, after checking for window
+      if (typeof window !== 'undefined') {
+          const vercelUrl = process.env.NEXT_PUBLIC_VERCEL_URL ? `&parent=${process.env.NEXT_PUBLIC_VERCEL_URL}` : "&parent=localhost";
+          const liveSrc = `https://player.twitch.tv/?channel=<span class="math-inline">\{process\.env\.NEXT\_PUBLIC\_TWITCH\_USER\_LOGIN\}&autoplay\=true</span>{vercelUrl}`;
+
+          setIframeSrc(liveSrc);
+    }
+
+    // Scroll listener (this part is correct)
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 100);
     };
 
     window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+
+    // Cleanup function for both interval and scroll listener
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []); // Empty dependency array: runs only once on mount
+
 
   return (
     <div className={`fixed left-0 top-0 h-full w-20 md:w-64 bg-gray-900 text-white transition-all duration-300 z-50 ${isScrolled ? 'shadow-xl' : ''}`}>
@@ -52,11 +60,11 @@ export default function Sidebar() {
         {/* Logo */}
         <div className="p-4 flex justify-center md:justify-start">
           <Link href="/">
-            <Image 
-              src="/LiefLogoYT.png" 
-              alt="Liefx Logo" 
-              width={50} 
-              height={50} 
+            <Image
+              src="/LiefLogoYT.png"
+              alt="Liefx Logo"
+              width={50}
+              height={50}
               className="rounded-full"
             />
           </Link>
@@ -71,13 +79,16 @@ export default function Sidebar() {
                 <span className="hidden md:inline text-sm font-bold">LIVE NOW</span>
               </div>
               <div className="hidden md:block mt-2">
-                <iframe
-                  src="https://player.twitch.tv/?channel=Liefx&parent=localhost&muted=true"
-                  height="150"
-                  width="100%"
-                  allowFullScreen={false}
-                  className="rounded"
-                ></iframe>
+                {/* Conditionally render the iframe only if iframeSrc is set */}
+                {iframeSrc && (
+                    <iframe
+                      src={iframeSrc} // Use the dynamic src
+                      height="150"
+                      width="100%"
+                      allowFullScreen={false}
+                      className="rounded"
+                    ></iframe>
+                )}
                 <p className="text-xs mt-1">{streamStatus.viewerCount} viewers</p>
               </div>
             </div>
@@ -141,7 +152,6 @@ export default function Sidebar() {
             </li>
           </ul>
         </nav>
-
         {/* Social Links */}
         <div className="p-4">
           <div className="flex justify-center md:justify-start space-x-4">

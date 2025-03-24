@@ -28,6 +28,10 @@ export async function GET(request: NextRequest) {
     );
 
     if (!tokenResponse.ok) {
+        if (tokenResponse.status === 429) { // Check for rate limit
+            console.error("[API] Twitch API Rate Limit Exceeded (Token)");
+            return NextResponse.json({ error: 'Twitch API Rate Limit Exceeded. Please try again later.' }, { status: 429 });
+        }
       const errorText = await tokenResponse.text();
       console.error(`[API] Failed to get Twitch access token: ${tokenResponse.status} - ${errorText}`);
       return NextResponse.json({ error: 'Failed to get Twitch access token' }, { status: 500 });
@@ -48,6 +52,10 @@ export async function GET(request: NextRequest) {
       }
     );
     if (!userResponse.ok) {
+        if (userResponse.status === 429) { // Check for rate limit
+            console.error("[API] Twitch API Rate Limit Exceeded (User)");
+            return NextResponse.json({ error: 'Twitch API Rate Limit Exceeded. Please try again later.' }, { status: 429 });
+        }
       const errorText = await userResponse.text();
       console.error(`[API] Failed to get Twitch user info: ${userResponse.status} - ${errorText}`);
       return NextResponse.json({ error: 'Failed to get Twitch user info' }, { status: 500 });
@@ -76,11 +84,15 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    if (!streamResponse.ok) {
-      const errorText = await streamResponse.text();
-      console.error(`[API] Failed to get Twitch stream info: ${streamResponse.status} - ${errorText}`);
-      return NextResponse.json({ error: 'Failed to get Twitch stream info' }, { status: 500 });
-    }
+      if (!streamResponse.ok) {
+          if (streamResponse.status === 429) {
+              console.error("[API] Twitch API Rate Limit Exceeded (Stream)");
+              return NextResponse.json({ error: 'Twitch API Rate Limit Exceeded. Please try again later.' }, { status: 429 });
+          }
+          const errorText = await streamResponse.text();
+          console.error(`[API] Failed to get Twitch stream info: ${streamResponse.status} - ${errorText}`);
+          return NextResponse.json({ error: 'Failed to get Twitch stream info' }, { status: 500 });
+      }
 
     const streamData = await streamResponse.json();
     console.log("[API] Stream data:", streamData); // Log stream data
@@ -97,11 +109,15 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    if (!videosResponse.ok) {
-      const errorText = await videosResponse.text();
-      console.error(`[API] Error fetching past broadcasts: ${videosResponse.status} - ${errorText}`);
-      //  don't return here, provide empty array.
-    }
+      if (!videosResponse.ok) {
+          if(videosResponse.status === 429){
+              console.error("[API] Twitch API Rate Limit Exceeded (Videos)");
+              return NextResponse.json({ error: 'Twitch API Rate Limit Exceeded. Please try again later.' }, { status: 429 });
+          }
+        const errorText = await videosResponse.text();
+        console.error(`[API] Error fetching past broadcasts: ${videosResponse.status} - ${errorText}`);
+        //  don't return here, provide empty array.
+      }
     const videosData = await videosResponse.json();
     console.log("[API] Videos data:", videosData); // Log video data
     const pastBroadcasts = videosData.data.map((video: any) => ({
@@ -124,8 +140,12 @@ export async function GET(request: NextRequest) {
         }
       }
     )
-  let schedule: ScheduleItem[] = [];
+      let schedule: ScheduleItem[] = [];
     if (!scheduleResponse.ok) {
+        if(scheduleResponse.status === 429){
+            console.error("[API] Twitch API Rate Limit Exceeded (Schedule)");
+            return NextResponse.json({ error: 'Twitch API Rate Limit Exceeded. Please try again later.' }, { status: 429 });
+        }
         try {
             const errorData = await scheduleResponse.json(); // Try to parse as JSON
             console.error("[API] Error fetching schedule", scheduleResponse.status, errorData);
