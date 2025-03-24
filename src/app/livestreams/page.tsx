@@ -36,15 +36,12 @@ export default function Livestreams() {
     fetchTwitchData();
     const interval = setInterval(fetchTwitchData, 60000); // Check every minute
 
-      if (typeof window !== 'undefined') {
-          const vercelUrl = process.env.NEXT_PUBLIC_VERCEL_URL ? process.env.NEXT_PUBLIC_VERCEL_URL : "localhost";
-          const liveSrc = `https://player.twitch.tv/?channel=<span class="math-inline">\{process\.env\.NEXT\_PUBLIC\_TWITCH\_USER\_LOGIN\}&parent\=localhost&parent\=</span>{vercelUrl}&autoplay=true`;
-           // Correct chat URL, using NEXT_PUBLIC_VERCEL_URL
-          const chatSrc = `https://www.twitch.tv/embed/<span class="math-inline">\{process\.env\.NEXT\_PUBLIC\_TWITCH\_USER\_LOGIN\}/chat?parent\=localhost&parent\=</span>{vercelUrl}`;
-
+      iif (typeof window !== 'undefined') {
+          const vercelUrl = process.env.NEXT_PUBLIC_VERCEL_URL ? `&parent=${process.env.NEXT_PUBLIC_VERCEL_URL}` : "&parent=localhost";
+          const liveSrc = `https://player.twitch.tv/?channel=${process.env.NEXT_PUBLIC_TWITCH_USER_LOGIN}&autoplay=true${vercelUrl}`;
+          const chatSrc = `https://www.twitch.tv/embed/${process.env.NEXT_PUBLIC_TWITCH_USER_LOGIN}/chat?parent=localhost${vercelUrl}`;
           setIframeSrc(liveSrc); // Set the live stream src
           setChatIframeSrc(chatSrc); // Set the chat iframe src
-
     }
 
     return () => clearInterval(interval);
