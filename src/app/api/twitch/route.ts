@@ -14,7 +14,7 @@ async function getAccessToken(clientId: string, clientSecret: string) {
 
     if(!accessToken && refreshToken) {
       // Need to refresh
-       const refreshResponse = await fetch(
+      const refreshResponse = await fetch(
         `https://id.twitch.tv/oauth2/token`,
         {
           method: 'POST',
@@ -62,31 +62,35 @@ async function getAccessToken(clientId: string, clientSecret: string) {
     return accessToken;
 }
 
-export async function GET(request: NextRequest) {
-    const clientId = process.env.TWITCH_CLIENT_ID;
-    const clientSecret = process.env.TWITCH_CLIENT_SECRET;
-    const userLogin = process.env.TWITCH_USER_LOGIN;
 
-    if (!clientId || !clientSecret || !userLogin) {
-        console.error("[API] Missing Twitch credentials. Check .env.local and Vercel settings.");
-        return NextResponse.json(
-            { error: 'Missing Twitch credentials' },
-            { status: 500 }
-        );
-    }
+export async function GET(request: NextRequest) {
+  const clientId = process.env.TWITCH_CLIENT_ID;
+  const clientSecret = process.env.TWITCH_CLIENT_SECRET;
+  const userLogin = process.env.TWITCH_USER_LOGIN;
+
+  if (!clientId || !clientSecret || !userLogin) {
+    console.error("[API] Missing Twitch credentials. Check .env.local and Vercel settings.");
+    return NextResponse.json(
+      { error: 'Missing Twitch credentials' },
+      { status: 500 }
+    );
+  }
 
     const accessToken = await getAccessToken(clientId, clientSecret);
 
   if (!accessToken) {
-    // Redirect to Twitch for authorization
-    const redirectUri = process.env.NEXT_PUBLIC_VERCEL_URL ? `${process.env.NEXT_PUBLIC_VERCEL_URL}/api/twitch/auth` : 'http://localhost:3000/api/twitch/auth';
-    const authUrl = `https://id.twitch.tv/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=channel:read:schedule user:read:broadcast`; // Add your required scopes
-     return NextResponse.redirect(authUrl); // Important! Redirect, don't return JSON
+    // Redirect to Twitch for authorization.  Correct URL here:
+    const redirectUri = process.env.NEXT_PUBLIC_VERCEL_URL
+      ? `${process.env.NEXT_PUBLIC_VERCEL_URL}/api/twitch/auth`
+      : 'http://localhost:3000/api/twitch/auth';
+    const authUrl = `https://id.twitch.tv/oauth2/authorize?client_id=<span class="math-inline">\{clientId\}&redirect\_uri\=</span>{redirectUri}&response_type=code&scope=channel:read:schedule user:read:broadcast`;
+    console.log("[API] Redirecting to Twitch for authorization:", authUrl);
+    return NextResponse.redirect(authUrl); // IMPORTANT: Redirect, don't return JSON
   }
 
   try {
-
-    // 2. Get user information (for profile picture, etc., and user ID)
+    // ... (rest of your API route logic, using the accessToken) ...
+       // 2. Get user information (for profile picture, etc., and user ID)
     const userResponse = await fetch(
       `https://api.twitch.tv/helix/users?login=${userLogin}`,
       {
@@ -115,7 +119,7 @@ export async function GET(request: NextRequest) {
     }
 
     const user = userData.data[0];
-     console.log("[API] User ID:", user.id, "User Login:", user.login); //Log the user ID
+    console.log("[API] User ID:", user.id, "User Login:", user.login); //Log the user ID
 
 
     // 3. Get stream information
