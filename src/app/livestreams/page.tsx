@@ -1,7 +1,7 @@
 // src/app/livestreams/page.tsx
 'use client';
 
-import { useState, useEffect, useId } from 'react'; // Import useId
+import { useState, useEffect, useId } from 'react'; // useId is no longer strictly needed, but good practice
 import Image from 'next/image';
 import Link from 'next/link';
 import { TwitchStreamStatus, PastBroadcast, ScheduleItem } from '@/types';
@@ -12,10 +12,8 @@ export default function Livestreams() {
   });
   const [pastBroadcasts, setPastBroadcasts] = useState<PastBroadcast[]>([]);
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
-  const [iframeSrc, setIframeSrc] = useState('');
-    const liveId = useId();
-    const chatId = useId();
-
+  const [iframeSrc, setIframeSrc] = useState(''); // Keep this for the live stream iframe
+  const [chatIframeSrc, setChatIframeSrc] = useState(''); // Add state for the chat iframe src
 
   useEffect(() => {
     const fetchTwitchData = async () => {
@@ -38,13 +36,15 @@ export default function Livestreams() {
     fetchTwitchData();
     const interval = setInterval(fetchTwitchData, 60000); // Check every minute
 
-      // Construct the iframe src *inside* useEffect, after checking for window
-      //and the vercel URL.
       if (typeof window !== 'undefined') {
           const vercelUrl = process.env.NEXT_PUBLIC_VERCEL_URL ? process.env.NEXT_PUBLIC_VERCEL_URL : "localhost";
-          const liveSrc = `https://player.twitch.tv/?channel=<span class="math-inline">\{process\.env\.NEXT\_PUBLIC\_TWITCH\_USER\_LOGIN\}&parent\=localhost&parent\=</span>{vercelUrl}`;
+          const liveSrc = `https://player.twitch.tv/?channel=<span class="math-inline">\{process\.env\.NEXT\_PUBLIC\_TWITCH\_USER\_LOGIN\}&parent\=localhost&parent\=</span>{vercelUrl}&autoplay=true`;
+           // Correct chat URL, using NEXT_PUBLIC_VERCEL_URL
           const chatSrc = `https://www.twitch.tv/embed/<span class="math-inline">\{process\.env\.NEXT\_PUBLIC\_TWITCH\_USER\_LOGIN\}/chat?parent\=localhost&parent\=</span>{vercelUrl}`;
-          setIframeSrc(liveSrc); // Set default to the live stream
+
+          setIframeSrc(liveSrc); // Set the live stream src
+          setChatIframeSrc(chatSrc); // Set the chat iframe src
+
     }
 
     return () => clearInterval(interval);
@@ -61,11 +61,9 @@ export default function Livestreams() {
             {streamStatus.isLive ? (
               <>
                 <div className="aspect-video w-full">
-                  {/* Use the iframeSrc state here */}
                   {iframeSrc && (
                     <iframe
-                      id={liveId}
-                      src={iframeSrc}
+                      src={iframeSrc} // Use the live stream src
                       height="100%"
                       width="100%"
                       className="w-full h-full"
@@ -247,12 +245,11 @@ export default function Livestreams() {
       <section className="mb-12">
         <h2 className="text-2xl font-bold mb-6 text-gray-800">Chat</h2>
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="h-96">
+          <div> {/* Removed h-96 */}
             {/* Chat iframe */}
-            {iframeSrc && (
+            {chatIframeSrc && ( // Use the chatIframeSrc state
                 <iframe
-                    id={chatId}
-                    src={`https://www.twitch.tv/embed/<span class="math-inline">\{process\.env\.NEXT\_PUBLIC\_TWITCH\_USER\_LOGIN\}/chat?parent\=localhost&parent\=</span>{new URL(window.location.href).hostname}`}
+                    src={chatIframeSrc} // Corrected src, from state
                     height="100%"
                     width="100%"
                     className="w-full h-full"
