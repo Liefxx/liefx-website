@@ -36,7 +36,7 @@ export default function Livestreams() {
     fetchTwitchData();
     const interval = setInterval(fetchTwitchData, 60000); // Check every minute
 
-      iif (typeof window !== 'undefined') {
+      if (typeof window !== 'undefined') {
           const vercelUrl = process.env.NEXT_PUBLIC_VERCEL_URL ? `&parent=${process.env.NEXT_PUBLIC_VERCEL_URL}` : "&parent=localhost";
           const liveSrc = `https://player.twitch.tv/?channel=${process.env.NEXT_PUBLIC_TWITCH_USER_LOGIN}&autoplay=true${vercelUrl}`;
           const chatSrc = `https://www.twitch.tv/embed/${process.env.NEXT_PUBLIC_TWITCH_USER_LOGIN}/chat?parent=localhost${vercelUrl}`;
