@@ -153,7 +153,7 @@ export async function GET(request: NextRequest) {
         let schedule: ScheduleItem[] = [];
 
         // Get user access token, if available
-        const userAccessToken = await getUserAccessToken(clientId!, clientSecret!);
+        const userAccessToken = await getUserAccessToken(); // No arguments!
 
         if (userAccessToken) {
           // Fetch User Info (requires user access token)
