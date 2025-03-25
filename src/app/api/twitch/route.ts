@@ -1,268 +1,271 @@
 // src/app/api/twitch/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { TwitchStreamStatus, PastBroadcast, ScheduleItem } from '@/types';
+import { cookies } from 'next/headers';
+import { encode } from 'html-entities';
 
-import { NextResponse, NextRequest } from 'next/server';
-import {
-    getAppAccessToken,
-    getUserAccessToken,
-    validateAccessToken,
-    fetchTwitchData,
-    revokeUserAccessToken,
-    fetchUserInfoWithToken,
-    fetchUser,
-    fetchSchedule,
-    fetchPastBroadcasts
-} from '@/lib/twitch';
-import { PrismaClient } from '@prisma/client';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/authOptions"
+const clientId = process.env.TWITCH_CLIENT_ID;
+const clientSecret = process.env.TWITCH_CLIENT_SECRET;
+const userLogin = process.env.TWITCH_USER_LOGIN;
 
-const prisma = new PrismaClient();
+// Function to get an app access token (for public data)
+async function getAppAccessToken() {
+    const tokenResponse = await fetch('https://id.twitch.tv/oauth2/token', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+            client_id: clientId!,
+            client_secret: clientSecret!,
+            grant_type: 'client_credentials',
+        }),
+        cache: 'no-store', // Important: Do not cache the app access token!
+    });
 
-export async function GET(request: NextRequest) {
-    try {
-        // Get parameters from request
-        const { searchParams } = new URL(request.url)
-
-        // Get the app access token
-        const appAccessToken = await getAppAccessToken();
-        if (!appAccessToken) {
-            console.error("Failed to get app access token");
-            return NextResponse.json({ error: 'Failed to get app access token' }, { status: 500 });
-        }
-
-        const userLogin = process.env.NEXT_PUBLIC_TWITCH_USER_LOGIN;
-        if (!userLogin) {
-            console.error("Twitch user login not configured");
-            return NextResponse.json({ error: 'Twitch user login not configured' }, { status: 500 }); //Internal Server Error
-        }
-
-        // Get user access token, if available
-        const userAccessToken = await getUserAccessToken();
-
-        if (userAccessToken) {
-            // Fetch User Info (requires user access token)
-            const userInfo = await fetchUserInfoWithToken(userAccessToken, process.env.NEXT_PUBLIC_TWITCH_CLIENT_ID!);
-
-            if (userInfo && userInfo.data && userInfo.data.length > 0) {
-
-                // Fetch Schedule (requires user access token)
-                const userSchedule = await fetchSchedule(userInfo.data[0].id, appAccessToken, process.env.NEXT_PUBLIC_TWITCH_CLIENT_ID!)
-
-
-                const scheduleData = userSchedule.data.segments ? userSchedule.data.segments.map((item: any) => {
-                    return {
-                        id: item.id,
-                        start_time: item.start_time,
-                        end_time: item.end_time,
-                        title: item.title,
-                        canceled_until: item.canceled_until,
-                        category: item.category ? {
-                            id: item.category.id,
-                            name: item.category.name
-                        } : null,
-                    };
-                }) : [];
-
-                const combinedData = {
-                    userInfo: {
-                        id: userInfo.data[0].id,
-                        login: userInfo.data[0].login,
-                        display_name: userInfo.data[0].display_name,
-                        profile_image_url: userInfo.data[0].profile_image_url,
-                        description: userInfo.data[0].description,
-                    },
-                    schedule: {
-                        vacation: userSchedule.data.vacation,
-                        segments: scheduleData
-                    },
-                };
-
-                // Respond with combined user info and schedule
-                return NextResponse.json(combinedData);
-
-            } else {
-                // If no user info, fall back to app access token data (offline status)
-                const twitchData = await fetchTwitchData(userLogin, appAccessToken);
-
-                if (!twitchData) {
-                    console.error("Failed to fetch Twitch data");
-                    return NextResponse.json({ error: 'Failed to fetch Twitch data' }, { status: 500 });
-                }
-
-                // Fetch User Info (requires user id)
-                const user = await fetchUser(userLogin, appAccessToken); // Corrected function name
-
-                if (!user) {
-                    console.error("Failed to fetch user");
-                    return NextResponse.json({ error: 'Failed to fetch user data' }, { status: 500 });
-                }
-
-
-                //fetch Past Broadcasts
-                const pastBroadcasts = await fetchPastBroadcasts(user.data[0].id, appAccessToken)
-
-
-                // Check if schedule exists
-                const scheduleData = twitchData.schedule?.segments ? twitchData.schedule.segments.map((item: any) => {
-                    return {
-                        id: item.id,
-                        start_time: item.start_time,
-                        end_time: item.end_time,
-                        title: item.title,
-                        canceled_until: item.canceled_until,
-                        category: item.category ? {
-                            id: item.category.id,
-                            name: item.category.name
-                        } : null,
-                    };
-                }) : [];
-
-
-                // Map past broadcasts
-                const pastBroadcastsData = pastBroadcasts.data ? pastBroadcasts.data.map((item: any) => {
-                    return {
-                        id: item.id,
-                        title: item.title,
-                        created_at: item.created_at,
-                        thumbnail_url: item.thumbnail_url
-                    }
-                }) : null;
-
-                const combinedData = {
-                    streamStatus: {
-                        isLive: twitchData.isLive,
-                        title: twitchData.title,
-                        game: twitchData.game,
-                        viewerCount: twitchData.viewerCount,
-                    },
-                    userInfo: {
-                        id: user.data[0].id,
-                        login: user.data[0].login,
-                        display_name: user.data[0].display_name,
-                        profile_image_url: user.data[0].profile_image_url,
-                        description: user.data[0].description
-                    },
-                    schedule: {
-                        vacation: twitchData.schedule?.vacation,
-                        segments: scheduleData,
-                    },
-                    pastBroadcasts: pastBroadcastsData
-                };
-
-                return NextResponse.json(combinedData); // Return the fetched data
-            }
-        } else {
-            // No user access token, fall back to app access token data (offline status)
-            const appAccessToken = await getAppAccessToken();
-            if (!appAccessToken) {
-                return NextResponse.json({ error: 'Failed to get app access token' }, { status: 500 });
-            }
-
-            const twitchData = await fetchTwitchData(userLogin, appAccessToken);
-            if (!twitchData) {
-                return NextResponse.json({ error: 'Failed to fetch Twitch data' }, { status: 500 });
-            }
-
-            // Fetch User Info (requires user id)
-            const user = await fetchUser(userLogin, appAccessToken); // Corrected function name
-
-            if (!user) {
-                return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 });
-            }
-
-
-            //fetch Past Broadcasts
-            const pastBroadcasts = await fetchPastBroadcasts(user.data[0].id, appAccessToken)
-
-
-            // Check if schedule exists
-            const scheduleData = twitchData.schedule?.segments ? twitchData.schedule.segments.map((item: any) => {
-                return {
-                    id: item.id,
-                    start_time: item.start_time,
-                    end_time: item.end_time,
-                    title: item.title,
-                    canceled_until: item.canceled_until,
-                    category: item.category ? {
-                        id: item.category.id,
-                        name: item.category.name
-                    } : null,
-                };
-            }) : [];
-
-
-            // Map past broadcasts
-            const pastBroadcastsData = pastBroadcasts.data ? pastBroadcasts.data.map((item: any) => {
-                return {
-                    id: item.id,
-                    title: item.title,
-                    created_at: item.created_at,
-                    thumbnail_url: item.thumbnail_url
-                }
-            }) : null;
-
-            const combinedData = {
-                streamStatus: {
-                    isLive: twitchData.isLive,
-                    title: twitchData.title,
-                    game: twitchData.game,
-                    viewerCount: twitchData.viewerCount,
-                },
-                userInfo: {
-                    id: user.data[0].id,
-                    login: user.data[0].login,
-                    display_name: user.data[0].display_name,
-                    profile_image_url: user.data[0].profile_image_url,
-                    description: user.data[0].description
-                },
-                schedule: {
-                    vacation: twitchData.schedule?.vacation,
-                    segments: scheduleData,
-                },
-                pastBroadcasts: pastBroadcastsData
-            };
-
-            return NextResponse.json(combinedData);
-        }
-
-    } catch (error) {
-        console.error("Error in /api/twitch GET:", error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text();
+        console.error(`[API] Failed to get app access token: ${tokenResponse.status} - ${errorText}`);
+        throw new Error('Failed to get app access token');
     }
+
+    const tokenData = await tokenResponse.json();
+    console.log("[API] App access token data:", tokenData);
+    return tokenData.access_token;
+}
+
+// Function to get a user access token (for private data, using cookies)
+async function getUserAccessToken() {
+    const cookieStore = cookies();
+    let accessToken = cookieStore.get('twitchAccessToken')?.value;
+    const refreshToken = cookieStore.get('twitchRefreshToken')?.value;
+
+    console.log("[API getAccessToken] accessToken from cookie:", accessToken);
+    console.log("[API getAccessToken] refreshToken from cookie:", refreshToken);
+
+    if (!accessToken && !refreshToken) {
+        return null; // No token available
+    }
+
+    if (!accessToken && refreshToken) {
+        // Need to refresh
+        const refreshResponse = await fetch(
+            `https://id.twitch.tv/oauth2/token`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    grant_type: 'refresh_token',
+                    refresh_token: refreshToken,
+                    client_id: clientId!,
+                    client_secret: clientSecret!,
+                }),
+                cache: 'no-store',
+            }
+        );
+
+        if (!refreshResponse.ok) {
+            const errorText = await refreshResponse.text();
+            console.error(`[API] Failed to refresh token: ${refreshResponse.status} - ${errorText}`);
+            // Delete cookies
+            cookies().delete('twitchAccessToken')
+            cookies().delete('twitchRefreshToken')
+            return null;
+        }
+
+        const refreshData = await refreshResponse.json();
+        accessToken = refreshData.access_token;
+
+        // Store the new access token and refresh token
+        cookies().set('twitchAccessToken', refreshData.access_token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: refreshData.expires_in,
+            path: '/',
+        });
+
+        cookies().set('twitchRefreshToken', refreshData.refresh_token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
+        });
+    }
+
+    return accessToken;
 }
 
 
-export async function DELETE(request: NextRequest) {
+
+export async function GET(request: NextRequest) {
     try {
-      const session = await getServerSession(authOptions);
-      if (!session || !session.user || !session.user.email) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-  
-      // Get the user's Twitch access token.  This assumes `getUserAccessToken`
-      // is correctly implemented to retrieve the token based on the session.
-      const userAccessToken = await getUserAccessToken();
-      if (!userAccessToken) {
-        return NextResponse.json({ error: 'User access token not found' }, { status: 404 });
-      }
-  
-      // Revoke the token with the Twitch API.
-      const revokeResult = await revokeUserAccessToken(userAccessToken);
-      if (!revokeResult) {
-        return NextResponse.json({ error: 'Failed to revoke token with Twitch' }, { status: 500 });
-      }
-  
-      // Delete token in database
-      await prisma.account.deleteMany({
-        where: {
-            userId: session.user.id
+
+      const appAccessToken = await getAppAccessToken(); // Always get an app token
+
+      // Fetch Stream Status (always available, uses app access token)
+      const streamResponse = await fetch(
+        `https://api.twitch.tv/helix/streams?user_login=${userLogin}`,
+        {
+          headers: {
+            'Client-ID': clientId!,
+            'Authorization': `Bearer ${appAccessToken}`, // Use APP access token
+          },
+          cache: 'no-store',
         }
-    });
-  
-      return NextResponse.json({ message: 'Access token revoked and account deleted' });
-  
+      );
+
+      if (!streamResponse.ok) {
+            if (streamResponse.status === 429) { // Check for rate limit
+                console.error("[API] Twitch API Rate Limit Exceeded (Stream)");
+                return NextResponse.json({ error: 'Twitch API Rate Limit Exceeded. Please try again later.' }, { status: 429 });
+        }
+        const errorText = await streamResponse.text();
+        console.error(
+          `[API] Failed to get stream status: ${streamResponse.status} - ${errorText}`
+        );
+        return NextResponse.json(
+          { error: "Failed to get stream status" },
+          { status: 500 }
+        );
+      }
+
+      const streamData = await streamResponse.json();
+      console.log("[API] Stream data:", streamData);
+      let streamStatus: TwitchStreamStatus = { isLive: false };
+      if (streamData.data.length > 0) {
+        const stream = streamData.data[0];
+        streamStatus = {
+          isLive: true,
+          title: encode(stream.title),
+          game: encode(stream.game_name),
+          viewerCount: stream.viewer_count,
+          thumbnailUrl: stream.thumbnail_url
+            .replace("{width}", "1920")
+            .replace("{height}", "1080"),
+        };
+      }
+
+
+        let pastBroadcasts: PastBroadcast[] = [];
+        let schedule: ScheduleItem[] = [];
+
+        // Get user access token, if available
+        const userAccessToken = await getUserAccessToken(clientId!, clientSecret!);
+
+        if (userAccessToken) {
+          // Fetch User Info (requires user access token)
+            const userResponse = await fetch(`https://api.twitch.tv/helix/users?login=${userLogin}`, {
+                headers: {
+                    'Client-ID': clientId!,
+                    'Authorization': `Bearer ${userAccessToken}`, // Use *user* access token
+                },
+                cache: 'no-store', // Very important!
+            });
+
+            if (!userResponse.ok) {
+                if (userResponse.status === 429) { // Check for rate limit
+                    console.error("[API] Twitch API Rate Limit Exceeded (User)");
+                    return NextResponse.json({ error: 'Twitch API Rate Limit Exceeded. Please try again later.' }, { status: 429 });
+                }
+                const errorText = await userResponse.text();
+                console.error(`[API] Failed to get Twitch user info: ${userResponse.status} - ${errorText}`);
+                return NextResponse.json({ error: 'Failed to get Twitch user info' }, { status: 500 }); // This is the line triggering the error
+            }
+
+            const userData = await userResponse.json();
+            console.log("[API] User data:", userData);
+
+            // Check if userData.data exists and has at least one element
+            if (!userData.data || userData.data.length === 0) {
+                console.error("[API] ERROR: No user data found for login:", userLogin);
+                return NextResponse.json({ error: 'No user data found for login: ' + userLogin }, { status: 404 });
+            }
+
+            const user = userData.data[0];
+            console.log("[API] User ID:", user.id, "User Login:", user.login); //Log the user ID
+
+
+            // Fetch Past Broadcasts (requires user access token)
+            const videosResponse = await fetch(`https://api.twitch.tv/helix/videos?user_id=${user.id}&type=archive&first=4`, {
+                headers: {
+                    'Client-ID': clientId!,
+                    'Authorization': `Bearer ${userAccessToken}`,
+                },
+                cache: 'no-store',
+            });
+
+             if (!videosResponse.ok) {
+                  if(videosResponse.status === 429){
+                      console.error("[API] Twitch API Rate Limit Exceeded (Videos)");
+                      return NextResponse.json({ error: 'Twitch API Rate Limit Exceeded. Please try again later.' }, { status: 429 });
+                  }
+                const errorText = await videosResponse.text();
+                console.error(`[API] Error fetching past broadcasts: ${videosResponse.status} - ${errorText}`);
+                //Don't return.
+              }
+              else { //parse if no errors
+                const videosData = await videosResponse.json();
+                console.log("[API] Videos data:", videosData);
+                pastBroadcasts = videosData.data.map((video: any) => ({
+                id: video.id,
+                title: encode(video.title),
+                thumbnail: video.thumbnail_url.replace('%{width}', '400').replace('%{height}', '225'),
+                duration: video.duration,
+                date: new Date(video.created_at).toLocaleDateString(),
+                views: video.view_count,
+                game: video.game_name || 'Unknown Game'
+                }));
+            }
+
+            // Fetch Stream Schedule (requires user access token)
+            const scheduleResponse = await fetch(`https://api.twitch.tv/helix/schedule/segments?broadcaster_id=${user.id}&first=3`, {
+                headers: {
+                    'Client-ID': clientId!,
+                    'Authorization': `Bearer ${userAccessToken}`,
+                },
+                cache: 'no-store',
+            });
+
+            if (!scheduleResponse.ok) {
+                if(scheduleResponse.status === 429){
+                    console.error("[API] Twitch API Rate Limit Exceeded (Schedule)");
+                    return NextResponse.json({error: 'Twitch API Rate Limit Exceeded. Please try again later.'}, {status: 429})
+                }
+                try{
+                    const errorData = await scheduleResponse.json(); // Try to parse as JSON
+                console.error("[API] Error fetching schedule", scheduleResponse.status, errorData);
+                } catch (e){
+                    const errorText = await scheduleResponse.text();
+                    console.error("[API] Error fetching schedule", scheduleResponse.status, errorText)
+                }
+
+            } else { //parse if no errors
+                const scheduleData = await scheduleResponse.json()
+                console.log("[API] Schedule data:", scheduleData); // Log schedule data
+
+                schedule = scheduleData.data?.segments?.map((item: any) => ({
+                id: item.id,
+                title: encode(item.title),
+                game: item.category ? encode(item.category.name) : 'No Category',
+                date: new Date(item.start_time).toLocaleDateString(),
+                time: new Date(item.start_time).toLocaleTimeString(),
+                })) ?? []
+            }
+        } else {
+            console.log("[API] No user access token.  Using app access token for public data only.");
+        }
+
+        return NextResponse.json({
+            streamStatus,
+            pastBroadcasts,
+            schedule,
+        });
+
     } catch (error) {
-      console.error("Error in /api/twitch DELETE:", error);
-      return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        console.error('[API] Error fetching data:', error);
+        return NextResponse.json({ error: 'Failed to fetch data' }, { status: 500 });
     }
-  }
+}
