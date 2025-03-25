@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { TwitchStreamStatus, PastBroadcast, ScheduleItem } from '@/types';
-import { html } from 'html-entities';
+import { encode } from 'html-entities'; // Correct import
 
 
 const clientId = process.env.TWITCH_CLIENT_ID;
@@ -31,7 +31,7 @@ async function getAppAccessToken() {
     }
 
     const tokenData = await tokenResponse.json();
-	console.log("[API] App access token data:", tokenData)
+    console.log("[API] App access token data:", tokenData)
     return tokenData.access_token;
 }
 
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
         const accessToken = cookieStore.get('twitchAccessToken')?.value;
 
         let streamStatus: TwitchStreamStatus = { isLive: false };
-		let userData = null;
+        let userData = null;
         let pastBroadcasts: PastBroadcast[] = [];
         let schedule: ScheduleItem[] = [];
 
@@ -60,9 +60,9 @@ export async function GET(request: Request) {
         });
 
         if (!streamResponse.ok) {
-                if (streamResponse.status === 429) { // Check for rate limit
-                    console.error("[API] Twitch API Rate Limit Exceeded (Stream)");
-                    return NextResponse.json({ error: 'Twitch API Rate Limit Exceeded. Please try again later.' }, { status: 429 });
+            if (streamResponse.status === 429) { // Check for rate limit
+                console.error("[API] Twitch API Rate Limit Exceeded (Stream)");
+                return NextResponse.json({ error: 'Twitch API Rate Limit Exceeded. Please try again later.' }, { status: 429 });
             }
             const errorText = await streamResponse.text();
             console.error(`[API] Failed to get stream status: ${streamResponse.status} - ${errorText}`);
@@ -70,13 +70,13 @@ export async function GET(request: Request) {
         }
 
         const streamData = await streamResponse.json();
-		console.log("[API] Stream data:", streamData)
+        console.log("[API] Stream data:", streamData)
         if (streamData.data.length > 0) {
             const stream = streamData.data[0];
             streamStatus = {
                 isLive: true,
-                title: html.encode(stream.title),
-                game: html.encode(stream.game_name),
+                title: encode(stream.title), // Correct usage
+                game: encode(stream.game_name),  // Correct usage
                 viewerCount: stream.viewer_count,
             };
         }
@@ -85,8 +85,8 @@ export async function GET(request: Request) {
         // If we have a user access token, fetch additional data.
         if (accessToken) {
 
-			 // Fetch User Info
-			 const userResponse = await fetch(`https://api.twitch.tv/helix/users?login=${userLogin}`, {
+             // Fetch User Info
+             const userResponse = await fetch(`https://api.twitch.tv/helix/users?login=${userLogin}`, {
                 headers: {
                     'Client-ID': clientId!,
                     'Authorization': `Bearer ${accessToken}`, // Use *user* access token
@@ -99,13 +99,13 @@ export async function GET(request: Request) {
                     console.error("[API] Twitch API Rate Limit Exceeded (User)");
                     return NextResponse.json({ error: 'Twitch API Rate Limit Exceeded. Please try again later.' }, { status: 429 });
                 }
-				const errorText = await userResponse.text();
+                const errorText = await userResponse.text();
                 console.error(`[API] Failed to get Twitch user info: ${userResponse.status} - ${errorText}`);
                 return NextResponse.json({ error: 'Failed to get Twitch user info' }, { status: 500 }); // This is the line triggering the error
             }
 
-			userData = await userResponse.json();
-			console.log("[API] User data:", userData);
+            userData = await userResponse.json();
+            console.log("[API] User data:", userData);
 
 
             // Fetch Past Broadcasts
@@ -129,15 +129,15 @@ export async function GET(request: Request) {
 
 
             const broadcastsData = await broadcastsResponse.json();
-			console.log("[API] Past broadcasts data:", broadcastsData);
+            console.log("[API] Past broadcasts data:", broadcastsData);
             pastBroadcasts = broadcastsData.data.map((broadcast: any) => ({
                 id: broadcast.id,
-                title: html.encode(broadcast.title),
+                title: encode(broadcast.title), // Correct usage
                 thumbnail: broadcast.thumbnail_url,
                 duration: broadcast.duration,
                 date: new Date(broadcast.created_at).toLocaleDateString(),
-				views: broadcast.view_count,
-				game: streamStatus.isLive ? streamStatus.game : "No Game"
+                views: broadcast.view_count,
+                game: streamStatus.isLive ? streamStatus.game : "No Game"
             }));
 
             // Fetch Stream Schedule
@@ -160,13 +160,13 @@ export async function GET(request: Request) {
             }
 
             const scheduleData = await scheduleResponse.json();
-			console.log("[API] Schedule data:", scheduleData);
+            console.log("[API] Schedule data:", scheduleData);
 
-			if (scheduleData && scheduleData.data && scheduleData.data.segments) {
+            if (scheduleData && scheduleData.data && scheduleData.data.segments) {
                 schedule = scheduleData.data.segments.map((segment: any) => ({
                     id: segment.id,
-                    title: html.encode(segment.title),
-                    game: segment.category ? html.encode(segment.category.name) : 'No Category',
+                    title: encode(segment.title), // Correct usage
+                    game: segment.category ? encode(segment.category.name) : 'No Category',  // Correct usage
                     date: new Date(segment.start_time).toLocaleDateString(),
                     time: new Date(segment.start_time).toLocaleTimeString(),
                 }));
