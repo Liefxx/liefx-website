@@ -46,8 +46,9 @@ export default function Livestreams() {
         // Set iframe srcs (this part remains unchanged)
         if (typeof window !== 'undefined') {
             const vercelUrl = process.env.NEXT_PUBLIC_VERCEL_URL ? `&parent=${process.env.NEXT_PUBLIC_VERCEL_URL}` : "&parent=localhost";
-            const liveSrc = `https://player.twitch.tv/?channel=<span class="math-inline">\{process\.env\.NEXT\_PUBLIC\_TWITCH\_USER\_LOGIN\}&autoplay\=true</span>{vercelUrl}`;
-            const chatSrc = `https://www.twitch.tv/embed/<span class="math-inline">\{process\.env\.NEXT\_PUBLIC\_TWITCH\_USER\_LOGIN\}/chat?parent\=localhost</span>{vercelUrl}`; //use vercelUrl variable here.
+            const liveSrc = `https://player.twitch.tv/?channel=${process.env.NEXT_PUBLIC_TWITCH_USER_LOGIN}&autoplay=true${vercelUrl}`;//fixed
+            const chatSrc = `https://www.twitch.tv/embed/${process.env.NEXT_PUBLIC_TWITCH_USER_LOGIN}/chat?parent=localhost${vercelUrl}`;//fixed
+
             setIframeSrc(liveSrc);
             setChatIframeSrc(chatSrc);
         }
