@@ -19,41 +19,24 @@ export default function Livestreams() {
 
 
     useEffect(() => {
-        const fetchTwitchData = async () => {
-            try {
-                const response = await fetch('/api/twitch');
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || 'Failed to fetch Twitch data'); // More specific error
-                }
+    const fetchTwitchData = async () => {
+        // ... (rest of your fetchTwitchData function) ...
+    };
 
-                const data = await response.json();
-                setStreamStatus(data.streamStatus);
-                setPastBroadcasts(data.pastBroadcasts);
-                setSchedule(data.schedule);
+    fetchTwitchData();
+    const interval = setInterval(fetchTwitchData, 60000);
 
-            } catch (error: any) {
-                console.error('Error fetching Twitch data:', error);
-                setError(error.message); // Set the error state
-            } finally {
-                setLoading(false); // Set loading to false in all cases
-            }
-        };
+    // Set iframe srcs (CORRECTED)
+    if (typeof window !== 'undefined') { // Only run on client
+        const parentDomain = process.env.NEXT_PUBLIC_VERCEL_URL || 'localhost'; // Correct parent
+        const liveSrc = `https://player.twitch.tv/?channel=<span class="math-inline">\{process\.env\.NEXT\_PUBLIC\_TWITCH\_USER\_LOGIN\}&autoplay\=true&parent\=</span>{parentDomain}`;
+        const chatSrc = `https://www.twitch.tv/embed/<span class="math-inline">\{process\.env\.NEXT\_PUBLIC\_TWITCH\_USER\_LOGIN\}/chat?parent\=</span>{parentDomain}`;
+        setIframeSrc(liveSrc);
+        setChatIframeSrc(chatSrc);
+    }
 
-        fetchTwitchData();
-        const interval = setInterval(fetchTwitchData, 60000);
-
-        // Set iframe srcs (this part remains unchanged)
-        if (typeof window !== 'undefined') {
-            const vercelUrl = process.env.NEXT_PUBLIC_VERCEL_URL ? `&parent=${process.env.NEXT_PUBLIC_VERCEL_URL}` : "&parent=localhost";
-            const liveSrc = `https://player.twitch.tv/?channel=${process.env.NEXT_PUBLIC_TWITCH_USER_LOGIN}&autoplay=true${vercelUrl}`;//fixed
-            const chatSrc = `https://www.twitch.tv/embed/${process.env.NEXT_PUBLIC_TWITCH_USER_LOGIN}/chat?parent=localhost${vercelUrl}`;//fixed
-            setIframeSrc(liveSrc);
-            setChatIframeSrc(chatSrc);
-        }
-
-        return () => clearInterval(interval);
-    }, []);
+    return () => clearInterval(interval);
+}, []);
 
     const handleLogin = () => {
         // This function is now *only* responsible for the redirect.
