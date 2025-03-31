@@ -20,22 +20,62 @@ export default function Livestreams() {
 
     useEffect(() => {
     const fetchTwitchData = async () => {
-        // ... (rest of your fetchTwitchData function) ...
+        setError(null); // Reset error before fetching
+        // setLoading(true); // Set loading only if needed on subsequent fetches
+
+        try {
+            const response = await fetch('/api/twitch'); // Fetch from your API route
+
+            if (!response.ok) {
+               // Try to get error details from response if possible
+               let errorDetails = `HTTP error! status: ${response.status}`;
+               try {
+                   const errorData = await response.json();
+                   errorDetails = errorData.error || errorDetails;
+               } catch (e) { /* Ignore if response isn't JSON */ }
+                throw new Error(errorDetails);
+            }
+
+            const data = await response.json();
+
+            // Update state based on fetched data
+            setStreamStatus(data.streamStatus || { isLive: false }); // Provide default
+            setPastBroadcasts(data.pastBroadcasts || []);
+            setSchedule(data.schedule || []);
+
+        } catch (err: any) {
+            console.error("Failed to fetch Twitch data:", err);
+            setError(err.message || 'Failed to load Twitch data.');
+            // Keep potentially stale data or clear it? Decide based on UX preference.
+            // setStreamStatus({ isLive: false }); // Optional: Reset on error
+        } finally {
+            setLoading(false); // Set loading false after fetch attempt
+        }
     };
 
-    fetchTwitchData();
-    const interval = setInterval(fetchTwitchData, 60000);
+    fetchTwitchData(); // Fetch data on initial load
+    const interval = setInterval(fetchTwitchData, 60000); // Refresh every 60 seconds
 
-    // Set iframe srcs (CORRECTED)
-    if (typeof window !== 'undefined') { // Only run on client
-        const parentDomain = process.env.NEXT_PUBLIC_VERCEL_URL || 'localhost'; // Correct parent
-        const liveSrc = `https://player.twitch.tv/?channel=<span class="math-inline">\{process\.env\.NEXT\_PUBLIC\_TWITCH\_USER\_LOGIN\}&autoplay\=true&parent\=</span>{parentDomain}`;
-        const chatSrc = `https://www.twitch.tv/embed/<span class="math-inline">\{process\.env\.NEXT\_PUBLIC\_TWITCH\_USER\_LOGIN\}/chat?parent\=</span>{parentDomain}`;
-        setIframeSrc(liveSrc);
-        setChatIframeSrc(chatSrc);
+    // Set iframe srcs (ensure env vars are correct!)
+    if (typeof window !== 'undefined') {
+         // Make sure these NEXT_PUBLIC_ vars are set in your .env.local!
+        const twitchUserLogin = process.env.NEXT_PUBLIC_TWITCH_USER_LOGIN;
+        const parentDomain = process.env.NEXT_PUBLIC_VERCEL_URL || 'localhost';
+
+        if (twitchUserLogin) {
+             const liveSrc = `https://player.twitch.tv/?channel=<span class="math-inline">\{twitchUserLogin\}&autoplay\=false&parent\=</span>{parentDomain}`; // Consider autoplay=false initially
+             const chatSrc = `https://www.twitch.tv/embed/<span class="math-inline">\{twitchUserLogin\}/chat?parent\=</span>{parentDomain}`;
+             setIframeSrc(liveSrc);
+             setChatIframeSrc(chatSrc);
+        } else {
+            console.error("ERROR: NEXT_PUBLIC_TWITCH_USER_LOGIN is not defined!");
+            setError("Twitch user login not configured.");
+        }
     }
 
-    return () => clearInterval(interval);
+    return () => clearInterval(interval); // Cleanup interval on unmount
+// Add empty dependency array to run only once on mount
+// If NEXT_PUBLIC_ vars could change, add them here, but they usually don't
 }, []);
 
     const handleLogin = () => {
