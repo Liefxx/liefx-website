@@ -1,4 +1,6 @@
 // src/app/api/twitch/route.ts
+export const dynamic = 'force-dynamic'; // Force dynamic rendering
+
 import { NextRequest, NextResponse } from 'next/server';
 import { TwitchStreamStatus, PastBroadcast, ScheduleItem } from '@/types';
 import { cookies } from 'next/headers';
