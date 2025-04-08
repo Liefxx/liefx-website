@@ -2,6 +2,7 @@
 import React from 'react';
 
 // Define the structure of a product based on the API spec (adjust if needed)
+//addign note to have a chaneg to be abel to commit a push
 interface Money {
   value: number;
   currency: string;
