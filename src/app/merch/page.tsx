@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 
-// --- Interfaces ---
+// --- Interfaces (same as before) ---
 interface Money { value: number; currency: string; }
 interface Image { id: string; url: string; width: number; height: number; }
 interface VariantAttributes { description: string; color?: { name: string; swatch: string; }; size?: { name: string; }; }
@@ -12,7 +12,7 @@ interface VariantStock { type: string; inStock?: number; }
 interface ProductVariant { id: string; name: string; sku: string; unitPrice: Money; compareAtPrice?: Money; attributes: VariantAttributes; stock: VariantStock; images: Image[]; }
 interface Product { id: string; name: string; slug: string; description: string; images: Image[]; variants: ProductVariant[]; }
 interface ApiResponse { results: Product[]; paging?: any; }
-interface Cart { id: string; items: any[]; checkoutUrl?: string; /* Add other cart details if needed */ } // Assuming checkoutUrl exists
+// Interface Cart is no longer needed within this component's checkout logic
 // --- End of Interfaces ---
 
 
@@ -20,14 +20,14 @@ export default function Merch() {
     // --- State Variables ---
     const [products, setProducts] = useState<Product[] | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState<boolean>(true); // For initial product load
-    const [cartId, setCartId] = useState<string | null>(null); // Store the active cart ID
-    const [isAddingToCart, setIsAddingToCart] = useState<string | null>(null); // Store the variantId being added
-    const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({}); // Key: productId, Value: selectedVariantId
-    const [isCheckingOut, setIsCheckingOut] = useState<boolean>(false); // For checkout button loading state
+    const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [cartId, setCartId] = useState<string | null>(null); // Still needed to know *if* a cart exists
+    const [isAddingToCart, setIsAddingToCart] = useState<string | null>(null);
+    const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
+    const [isCheckingOut, setIsCheckingOut] = useState<boolean>(false); // Keep for button state
 
     // --- Environment Variable Access ---
-    const storefrontToken = process.env.NEXT_PUBLIC_FOURTHWALL_STOREFRONT_TOKEN;
+    const storefrontToken = process.env.NEXT_PUBLIC_FOURTHWALL_STOREFRONT_TOKEN; // Still needed for AddToCart
 
     // --- Effect for Initial Data Fetching & Loading Cart ID ---
     useEffect(() => {
@@ -40,24 +40,19 @@ export default function Merch() {
         const fetchData = async () => {
             setIsLoading(true);
             setError(null);
-
             if (!storefrontToken) {
                 console.error("ERROR: NEXT_PUBLIC_FOURTHWALL_STOREFRONT_TOKEN is not set.");
                 setError("Configuration error: Storefront token not configured.");
-                setIsLoading(false);
-                return;
+                setIsLoading(false); return;
             }
-
             const collectionSlug = 'liefx';
             const apiUrl = `https://storefront-api.fourthwall.com/v1/collections/${collectionSlug}/products?storefront_token=${storefrontToken}`;
-
             try {
                 const res = await fetch(apiUrl, { cache: 'no-store' });
                 if (!res.ok) { throw new Error(`Failed to fetch products (${res.status})`); }
                 const data: ApiResponse = await res.json();
                 const fetchedProducts = data.results || [];
                 setProducts(fetchedProducts);
-
                 const initialSelected: Record<string, string> = {};
                 fetchedProducts.forEach(product => {
                     if (product.variants && product.variants.length > 0) {
@@ -65,13 +60,10 @@ export default function Merch() {
                     }
                 });
                 setSelectedVariants(initialSelected);
-
             } catch (fetchError: any) {
                 console.error("Fetch error:", fetchError);
                 setError(`Failed to load products: ${fetchError.message}`);
-            } finally {
-                setIsLoading(false);
-            }
+            } finally { setIsLoading(false); }
         };
         fetchData();
     }, [storefrontToken]);
@@ -83,7 +75,7 @@ export default function Merch() {
     }, []);
 
 
-    // --- Add to Cart Handler ---
+    // --- Add to Cart Handler (Unchanged) ---
     const handleAddToCart = async (variantId: string) => {
        if (!variantId) { alert("Please select a variant."); return; }
        setIsAddingToCart(variantId);
@@ -96,7 +88,7 @@ export default function Merch() {
                const createCartApiUrl = `https://storefront-api.fourthwall.com/v1/carts?storefront_token=${storefrontToken}`;
                const createCartRes = await fetch(createCartApiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: [] }) });
                if (!createCartRes.ok) { throw new Error('Failed to create cart'); }
-               const newCart: Cart = await createCartRes.json();
+               const newCart = await createCartRes.json(); // Re-infer type or use basic object
                currentCartId = newCart.id;
                setCartId(currentCartId);
                localStorage.setItem('fourthwallCartId', currentCartId);
@@ -107,7 +99,7 @@ export default function Merch() {
            const addToCartApiUrl = `https://storefront-api.fourthwall.com/v1/carts/${currentCartId}/add?storefront_token=${storefrontToken}`;
            const addToCartRes = await fetch(addToCartApiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: [{ variantId: variantId, quantity: 1 }] }) });
            if (!addToCartRes.ok) { const text = await addToCartRes.text(); console.error(text); throw new Error('Failed to add item'); }
-           const updatedCart: Cart = await addToCartRes.json();
+           const updatedCart = await addToCartRes.json(); // Re-infer type or use basic object
            console.log("Item added:", updatedCart);
            alert(`Item added to cart!`);
        } catch (err: any) { console.error("handleAddToCart failed:", err); setError(err.message); alert(`Error: ${err.message}`); }
@@ -115,31 +107,36 @@ export default function Merch() {
     };
 
 
-    // --- Checkout Handler ---
-     const handleCheckout = async () => {
-        setIsCheckingOut(true);
+    // --- Checkout Handler (Simplified to redirect) ---
+     const handleCheckout = () => {
+        setIsCheckingOut(true); // Still useful to show loading/prevent double click
         setError(null);
-        if (!cartId) { alert("Your cart is empty."); setIsCheckingOut(false); return; }
-        if (!storefrontToken) { alert("Error: Config missing."); setIsCheckingOut(false); return; }
-        console.log(`Workspaceing cart details for checkout: Cart ID ${cartId}`);
-        const getCartApiUrl = `https://storefront-api.fourthwall.com/v1/carts/${cartId}?storefront_token=${storefrontToken}`;
+
+        if (!cartId) {
+            // Optionally, you could still redirect, but it might show an empty cart.
+            // Or alert the user the cart seems empty locally.
+            alert("Your cart appears to be empty.");
+            console.log("Checkout skipped, no local cartId found.");
+            setIsCheckingOut(false);
+            return;
+        }
+
+        // --- ASSUMED Standard Cart URL ---
+        // Verify 'https://liefx-shop.fourthwall.com' and the '/cart' path are correct
+        const standardCartUrl = `https://liefx-shop.fourthwall.com/cart`;
+
         try {
-            const res = await fetch(getCartApiUrl);
-            if (!res.ok) { throw new Error(`Failed to fetch cart details (${res.status})`); }
-            const cartData: Cart = await res.json();
+            console.log(`Redirecting to standard cart page: ${standardCartUrl}`);
+            // Redirect the user's browser
+            window.location.href = standardCartUrl;
+            // If redirect starts, the rest of the code might not execute.
+            // No need to reset isCheckingOut if redirect is successful.
 
-            // *** VERIFY THIS FIELD NAME in Fourthwall Docs ***
-            const checkoutUrl = cartData.checkoutUrl;
-
-            if (checkoutUrl && typeof checkoutUrl === 'string') {
-                console.log("Redirecting to checkout:", checkoutUrl);
-                window.location.href = checkoutUrl; // Redirect to Fourthwall
-            } else { throw new Error("Could not find checkout URL."); }
         } catch (err: any) {
-            console.error("handleCheckout failed:", err);
-            setError(`Checkout Error: ${err.message}`);
-            alert(`Checkout Error: ${err.message}`);
-            setIsCheckingOut(false); // Only reset if redirect doesn't happen
+            // This catch block might not catch standard redirect issues
+            console.error("Redirect failed unexpectedly:", err);
+            alert("Could not redirect to checkout.");
+            setIsCheckingOut(false); // Reset state on failure
         }
     };
     // --- End of Handlers ---
@@ -148,32 +145,28 @@ export default function Merch() {
     // --- Render Component ---
     if (isLoading) { return <div className="container mx-auto p-4"><h1 className="text-3xl font-bold mb-4">My Merch</h1><p>Loading...</p></div>; }
 
-    // Use a more prominent error display if needed
-    // if (error) { return <div className="container mx-auto p-4"><h1 className="text-3xl font-bold text-red-600">Error</h1><p>{error}</p></div>; }
-
     return (
         <div className="container mx-auto p-4">
             {/* Header with Title and Checkout Button */}
             <div className="flex justify-between items-center mb-6 border-b pb-4">
                 <h1 className="text-3xl font-bold">My Merch</h1>
+                {/* Show checkout button if a cart *might* exist (based on local cartId) */}
                 {cartId && (
                     <button
                         onClick={handleCheckout}
-                        disabled={isCheckingOut || !cartId}
-                        className={`bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded text-sm transition-colors duration-200 ${isCheckingOut || !cartId ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        disabled={isCheckingOut} // Only disable while processing the click
+                        className={`bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded text-sm transition-colors duration-200 ${isCheckingOut ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
-                        {isCheckingOut ? 'Processing...' : 'Proceed to Checkout'}
+                        {isCheckingOut ? 'Redirecting...' : 'View Cart / Checkout'}
                     </button>
-                )}
+                 )}
             </div>
 
              {/* Display Error Messages */}
              {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">{error}</div>}
 
             {/* Product Grid or No Products Message */}
-            {(!products || products.length === 0) && !isLoading && (
-                 <p>No products found in this collection.</p>
-            )}
+            {(!products || products.length === 0) && !isLoading && ( <p>No products found.</p> )}
             {products && products.length > 0 && (
                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                      {products.map((product) => {
@@ -184,42 +177,19 @@ export default function Merch() {
                          return (
                              <div key={product.id} className="border border-gray-200 rounded-lg p-4 flex flex-col shadow-md hover:shadow-lg transition-shadow duration-200">
                                  {/* Image */}
-                                 {product.images && product.images.length > 0 && (
-                                     <div className="w-full h-48 mb-4 overflow-hidden rounded">
-                                         <img src={product.images[0].url} alt={product.name} className="w-full h-full object-cover" />
-                                     </div>
-                                 )}
+                                 {product.images && product.images.length > 0 && ( <div className="w-full h-48 mb-4 overflow-hidden rounded"><img src={product.images[0].url} alt={product.name} className="w-full h-full object-cover" /></div> )}
                                  {/* Details */}
                                  <h2 className="text-xl font-semibold mb-2">{product.name}</h2>
                                  <p className="text-gray-600 mb-3 text-sm flex-grow">{product.description?.substring(0, 100)}{product.description?.length > 100 ? '...' : ''}</p>
-
                                  {/* Variant Selection */}
-                                 {product.variants && product.variants.length > 1 && (
-                                     <div className="mb-3">
-                                         <label htmlFor={`variant-select-${product.id}`} className="block text-sm font-medium text-gray-700 mb-1">Options:</label>
-                                         <select id={`variant-select-${product.id}`} name="variant" value={currentSelectedVariantId || ''} onChange={(e) => handleVariantChange(product.id, e.target.value)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                                             {product.variants.map(variant => ( <option key={variant.id} value={variant.id}>{variant.attributes.description || variant.name}</option> ))}
-                                         </select>
-                                     </div>
-                                 )}
-
+                                 {product.variants && product.variants.length > 1 && ( <div className="mb-3"><label htmlFor={`variant-select-${product.id}`} className="block text-sm font-medium text-gray-700 mb-1">Options:</label><select id={`variant-select-${product.id}`} name="variant" value={currentSelectedVariantId || ''} onChange={(e) => handleVariantChange(product.id, e.target.value)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">{product.variants.map(variant => ( <option key={variant.id} value={variant.id}>{variant.attributes.description || variant.name}</option> ))} </select> </div> )}
                                  {/* Price & Stock */}
                                  {selectedVariant && ( <p className="font-bold text-lg mb-1">${selectedVariant.unitPrice.value.toFixed(2)} {selectedVariant.unitPrice.currency}</p> )}
-                                 {selectedVariant?.stock?.type === 'Limited' && selectedVariant?.stock?.inStock !== undefined && (
-                                     <p className={`text-sm mb-3 ${isSelectedOutOfStock ? 'text-red-500' : 'text-green-600'}`}>{isSelectedOutOfStock ? 'Out of Stock' : `${selectedVariant.stock.inStock} left`}</p>
-                                 )}
-
+                                 {selectedVariant?.stock?.type === 'Limited' && selectedVariant?.stock?.inStock !== undefined && ( <p className={`text-sm mb-3 ${isSelectedOutOfStock ? 'text-red-500' : 'text-green-600'}`}>{isSelectedOutOfStock ? 'Out of Stock' : `${selectedVariant.stock.inStock} left`}</p> )}
                                  {/* Buttons */}
                                  <div className="mt-auto pt-3">
-                                     <Link href={`/merch/${product.slug}`} passHref>
-                                         <button className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded mb-2 text-sm transition-colors duration-200">View Details</button>
-                                     </Link>
-                                     <button
-                                         onClick={() => handleAddToCart(currentSelectedVariantId)}
-                                         disabled={!currentSelectedVariantId || isSelectedOutOfStock || isAddingToCart === currentSelectedVariantId}
-                                         className={`w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded text-sm transition-colors duration-200 ${!currentSelectedVariantId || isSelectedOutOfStock || isAddingToCart === currentSelectedVariantId ? 'opacity-50 cursor-not-allowed' : ''}`} >
-                                         {isAddingToCart === currentSelectedVariantId ? 'Adding...' : 'Add to Cart'}
-                                     </button>
+                                     <Link href={`/merch/${product.slug}`} passHref><button className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded mb-2 text-sm transition-colors duration-200">View Details</button></Link>
+                                     <button onClick={() => handleAddToCart(currentSelectedVariantId)} disabled={!currentSelectedVariantId || isSelectedOutOfStock || isAddingToCart === currentSelectedVariantId} className={`w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded text-sm transition-colors duration-200 ${!currentSelectedVariantId || isSelectedOutOfStock || isAddingToCart === currentSelectedVariantId ? 'opacity-50 cursor-not-allowed' : ''}`} >{isAddingToCart === currentSelectedVariantId ? 'Adding...' : 'Add to Cart'}</button>
                                  </div>
                              </div>
                          )
