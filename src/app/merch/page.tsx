@@ -12,7 +12,8 @@ interface VariantStock { type: string; inStock?: number; }
 interface ProductVariant { id: string; name: string; sku: string; unitPrice: Money; compareAtPrice?: Money; attributes: VariantAttributes; stock: VariantStock; images: Image[]; }
 interface Product { id: string; name: string; slug: string; description: string; images: Image[]; variants: ProductVariant[]; }
 interface ApiResponse { results: Product[]; paging?: any; }
-// Interface Cart is no longer needed within this component's checkout logic
+// Basic Cart interface, assuming newCart.id is string
+interface Cart { id: string; items: any[]; checkoutUrl?: string; }
 // --- End of Interfaces ---
 
 
@@ -21,13 +22,13 @@ export default function Merch() {
     const [products, setProducts] = useState<Product[] | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
-    const [cartId, setCartId] = useState<string | null>(null); // Still needed to know *if* a cart exists
+    const [cartId, setCartId] = useState<string | null>(null);
     const [isAddingToCart, setIsAddingToCart] = useState<string | null>(null);
     const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
-    const [isCheckingOut, setIsCheckingOut] = useState<boolean>(false); // Keep for button state
+    const [isCheckingOut, setIsCheckingOut] = useState<boolean>(false);
 
     // --- Environment Variable Access ---
-    const storefrontToken = process.env.NEXT_PUBLIC_FOURTHWALL_STOREFRONT_TOKEN; // Still needed for AddToCart
+    const storefrontToken = process.env.NEXT_PUBLIC_FOURTHWALL_STOREFRONT_TOKEN;
 
     // --- Effect for Initial Data Fetching & Loading Cart ID ---
     useEffect(() => {
@@ -36,15 +37,10 @@ export default function Merch() {
             console.log("Loaded cartId from localStorage:", storedCartId);
             setCartId(storedCartId);
         }
-
-        const fetchData = async () => {
+        const fetchData = async () => { /* ... same fetch data logic ... */
             setIsLoading(true);
             setError(null);
-            if (!storefrontToken) {
-                console.error("ERROR: NEXT_PUBLIC_FOURTHWALL_STOREFRONT_TOKEN is not set.");
-                setError("Configuration error: Storefront token not configured.");
-                setIsLoading(false); return;
-            }
+            if (!storefrontToken) { console.error("ERROR: NEXT_PUBLIC_FOURTHWALL_STOREFRONT_TOKEN is not set."); setError("Configuration error: Storefront token not configured."); setIsLoading(false); return; }
             const collectionSlug = 'liefx';
             const apiUrl = `https://storefront-api.fourthwall.com/v1/collections/${collectionSlug}/products?storefront_token=${storefrontToken}`;
             try {
@@ -54,28 +50,20 @@ export default function Merch() {
                 const fetchedProducts = data.results || [];
                 setProducts(fetchedProducts);
                 const initialSelected: Record<string, string> = {};
-                fetchedProducts.forEach(product => {
-                    if (product.variants && product.variants.length > 0) {
-                        initialSelected[product.id] = product.variants[0].id;
-                    }
-                });
+                fetchedProducts.forEach(product => { if (product.variants && product.variants.length > 0) { initialSelected[product.id] = product.variants[0].id; } });
                 setSelectedVariants(initialSelected);
-            } catch (fetchError: any) {
-                console.error("Fetch error:", fetchError);
-                setError(`Failed to load products: ${fetchError.message}`);
-            } finally { setIsLoading(false); }
+            } catch (fetchError: any) { console.error("Fetch error:", fetchError); setError(`Failed to load products: ${fetchError.message}`); }
+            finally { setIsLoading(false); }
         };
         fetchData();
     }, [storefrontToken]);
-
 
     // --- Handler for Variant Selection Change ---
     const handleVariantChange = useCallback((productId: string, variantId: string) => {
         setSelectedVariants(prev => ({ ...prev, [productId]: variantId }));
     }, []);
 
-
-    // --- Add to Cart Handler (Unchanged) ---
+    // --- Add to Cart Handler (With localStorage fix) ---
     const handleAddToCart = async (variantId: string) => {
        if (!variantId) { alert("Please select a variant."); return; }
        setIsAddingToCart(variantId);
@@ -88,84 +76,60 @@ export default function Merch() {
                const createCartApiUrl = `https://storefront-api.fourthwall.com/v1/carts?storefront_token=${storefrontToken}`;
                const createCartRes = await fetch(createCartApiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: [] }) });
                if (!createCartRes.ok) { throw new Error('Failed to create cart'); }
-               const newCart = await createCartRes.json(); // Re-infer type or use basic object
-               currentCartId = newCart.id;
+               const newCart: Cart = await createCartRes.json();
+               currentCartId = newCart.id; // Should be a string now
                setCartId(currentCartId);
-               localStorage.setItem('fourthwallCartId', currentCartId);
-               console.log("New cart created:", currentCartId);
+
+               // --- FIX: Check if currentCartId is a string before saving ---
+               if (currentCartId) {
+                   localStorage.setItem('fourthwallCartId', currentCartId); // Save valid string ID
+                   console.log("New cart created and ID saved:", currentCartId);
+               } else {
+                   // This case should ideally not happen if API behaves correctly
+                   console.error("Cart created, but ID received was invalid. Cannot save to localStorage.");
+                   throw new Error("Invalid Cart ID received after creation.");
+               }
+               // --- End FIX ---
+
            }
            if (!currentCartId) { throw new Error("Cart ID missing after creation attempt."); }
            console.log(`Adding variant ${variantId} to cart ${currentCartId}`);
            const addToCartApiUrl = `https://storefront-api.fourthwall.com/v1/carts/${currentCartId}/add?storefront_token=${storefrontToken}`;
            const addToCartRes = await fetch(addToCartApiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: [{ variantId: variantId, quantity: 1 }] }) });
            if (!addToCartRes.ok) { const text = await addToCartRes.text(); console.error(text); throw new Error('Failed to add item'); }
-           const updatedCart = await addToCartRes.json(); // Re-infer type or use basic object
+           const updatedCart = await addToCartRes.json();
            console.log("Item added:", updatedCart);
            alert(`Item added to cart!`);
        } catch (err: any) { console.error("handleAddToCart failed:", err); setError(err.message); alert(`Error: ${err.message}`); }
        finally { setIsAddingToCart(null); }
     };
 
-
-    // --- Checkout Handler (Simplified to redirect) ---
+    // --- Checkout Handler (Simplified Redirect) ---
      const handleCheckout = () => {
-        setIsCheckingOut(true); // Still useful to show loading/prevent double click
+        setIsCheckingOut(true);
         setError(null);
-
-        if (!cartId) {
-            // Optionally, you could still redirect, but it might show an empty cart.
-            // Or alert the user the cart seems empty locally.
-            alert("Your cart appears to be empty.");
-            console.log("Checkout skipped, no local cartId found.");
-            setIsCheckingOut(false);
-            return;
-        }
-
-        // --- ASSUMED Standard Cart URL ---
-        // Verify 'https://liefx-shop.fourthwall.com' and the '/cart' path are correct
-        const standardCartUrl = `https://liefx-shop.fourthwall.com/cart`;
-
+        if (!cartId) { alert("Your cart appears to be empty."); console.log("Checkout skipped, no local cartId found."); setIsCheckingOut(false); return; }
+        const standardCartUrl = `https://liefx-shop.fourthwall.com/cart`; // Assumed URL
         try {
             console.log(`Redirecting to standard cart page: ${standardCartUrl}`);
-            // Redirect the user's browser
             window.location.href = standardCartUrl;
-            // If redirect starts, the rest of the code might not execute.
-            // No need to reset isCheckingOut if redirect is successful.
-
-        } catch (err: any) {
-            // This catch block might not catch standard redirect issues
-            console.error("Redirect failed unexpectedly:", err);
-            alert("Could not redirect to checkout.");
-            setIsCheckingOut(false); // Reset state on failure
-        }
+        } catch (err: any) { console.error("Redirect failed unexpectedly:", err); alert("Could not redirect to checkout."); setIsCheckingOut(false); }
     };
     // --- End of Handlers ---
-
 
     // --- Render Component ---
     if (isLoading) { return <div className="container mx-auto p-4"><h1 className="text-3xl font-bold mb-4">My Merch</h1><p>Loading...</p></div>; }
 
     return (
         <div className="container mx-auto p-4">
-            {/* Header with Title and Checkout Button */}
+            {/* Header */}
             <div className="flex justify-between items-center mb-6 border-b pb-4">
                 <h1 className="text-3xl font-bold">My Merch</h1>
-                {/* Show checkout button if a cart *might* exist (based on local cartId) */}
-                {cartId && (
-                    <button
-                        onClick={handleCheckout}
-                        disabled={isCheckingOut} // Only disable while processing the click
-                        className={`bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded text-sm transition-colors duration-200 ${isCheckingOut ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                        {isCheckingOut ? 'Redirecting...' : 'View Cart / Checkout'}
-                    </button>
-                 )}
+                {cartId && ( <button onClick={handleCheckout} disabled={isCheckingOut} className={`bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded text-sm transition-colors duration-200 ${isCheckingOut ? 'opacity-50 cursor-not-allowed' : ''}`} > {isCheckingOut ? 'Redirecting...' : 'View Cart / Checkout'} </button> )}
             </div>
-
-             {/* Display Error Messages */}
-             {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">{error}</div>}
-
-            {/* Product Grid or No Products Message */}
+            {/* Error Display */}
+            {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">{error}</div>}
+            {/* Product Grid / No Products */}
             {(!products || products.length === 0) && !isLoading && ( <p>No products found.</p> )}
             {products && products.length > 0 && (
                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -173,7 +137,6 @@ export default function Merch() {
                          const currentSelectedVariantId = selectedVariants[product.id];
                          const selectedVariant = product.variants?.find(v => v.id === currentSelectedVariantId);
                          const isSelectedOutOfStock = selectedVariant?.stock?.type === 'Limited' && selectedVariant?.stock?.inStock !== undefined && selectedVariant?.stock?.inStock <= 0;
-
                          return (
                              <div key={product.id} className="border border-gray-200 rounded-lg p-4 flex flex-col shadow-md hover:shadow-lg transition-shadow duration-200">
                                  {/* Image */}
