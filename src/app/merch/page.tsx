@@ -29,7 +29,7 @@ export default function Merch() {
 
     // --- Environment Variable Access ---
     const storefrontToken = process.env.NEXT_PUBLIC_FOURTHWALL_STOREFRONT_TOKEN;
-    const checkoutDomain = process.env.NEXT_PUBLIC_FW_CHECKOUT; // Added for checkout URL
+    const checkoutDomain = process.env.NEXT_PUBLIC_FW_CHECKOUT;
 
     // --- Effect for Initial Data Fetching & Loading Cart ID ---
     useEffect(() => {
@@ -38,24 +38,45 @@ export default function Merch() {
             console.log("Loaded cartId from localStorage:", storedCartId);
             setCartId(storedCartId);
         }
-        const fetchData = async () => { /* ... same fetch data logic ... */
+
+        const fetchData = async () => {
             setIsLoading(true);
             setError(null);
-            if (!storefrontToken) { console.error("ERROR: NEXT_PUBLIC_FOURTHWALL_STOREFRONT_TOKEN is not set."); setError("Configuration error: Storefront token not configured."); setIsLoading(false); return; }
-            const collectionSlug = 'liefx';
-            const apiUrl = `https://storefront-api.fourthwall.com/v1/collections/${collectionSlug}/products?storefront_token=${storefrontToken}`;
+
+            if (!storefrontToken) {
+                console.error("ERROR: Storefront token not configured.");
+                setError("Configuration error: Storefront token not configured.");
+                setIsLoading(false);
+                return;
+            }
+
+            const apiUrl = `https://storefront-api.fourthwall.com/v1/products?storefront_token=${storefrontToken}`;
+            
             try {
                 const res = await fetch(apiUrl, { cache: 'no-store' });
-                if (!res.ok) { throw new Error(`Failed to fetch products (${res.status})`); }
+                if (!res.ok) {
+                    throw new Error(`Failed to fetch products (${res.status})`);
+                }
                 const data: ApiResponse = await res.json();
                 const fetchedProducts = data.results || [];
                 setProducts(fetchedProducts);
+                
+                // Initialize selected variants
                 const initialSelected: Record<string, string> = {};
-                fetchedProducts.forEach(product => { if (product.variants && product.variants.length > 0) { initialSelected[product.id] = product.variants[0].id; } });
+                fetchedProducts.forEach(product => {
+                    if (product.variants && product.variants.length > 0) {
+                        initialSelected[product.id] = product.variants[0].id;
+                    }
+                });
                 setSelectedVariants(initialSelected);
-            } catch (fetchError: any) { console.error("Fetch error:", fetchError); setError(`Failed to load products: ${fetchError.message}`); }
-            finally { setIsLoading(false); }
+            } catch (fetchError: any) {
+                console.error("Fetch error:", fetchError);
+                setError(`Failed to load products: ${fetchError.message}`);
+            } finally {
+                setIsLoading(false);
+            }
         };
+
         fetchData();
     }, [storefrontToken]);
 

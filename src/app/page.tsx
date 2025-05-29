@@ -14,10 +14,24 @@ interface YouTubeVideo {
   channelTitle: string;
 }
 
+// Add Merch types
+interface MerchProduct {
+  id: string;
+  name: string;
+  description: string;
+  images: { url: string }[];
+  variants: {
+    id: string;
+    unitPrice: { value: number; currency: string };
+  }[];
+  slug: string;
+}
+
 export default function Home() {
   const [featuredContent, setFeaturedContent] = useState<YouTubeVideo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [merchProducts, setMerchProducts] = useState<MerchProduct[]>([]);
 
   const channels = [
     { id: 'UC6PVHS7Iq-fJqMLpdebrhZQ', name: 'Liefx' },
@@ -71,10 +85,30 @@ export default function Home() {
     fetchLatestVideos();
   }, []);
 
+  // Add useEffect for merch
+  useEffect(() => {
+    const fetchMerch = async () => {
+      const storefrontToken = process.env.NEXT_PUBLIC_FOURTHWALL_STOREFRONT_TOKEN;
+      if (!storefrontToken) return;
+
+      try {
+        const apiUrl = `https://storefront-api.fourthwall.com/v1/products?storefront_token=${storefrontToken}`;
+        const res = await fetch(apiUrl, { cache: 'no-store' });
+        if (!res.ok) throw new Error('Failed to fetch merch');
+        const data = await res.json();
+        setMerchProducts(data.results.slice(0, 3)); // Get first 3 products
+      } catch (err) {
+        console.error('Error fetching merch:', err);
+      }
+    };
+
+    fetchMerch();
+  }, []);
+
   return (
     <div className="container mx-auto">
-      {/* Hero Section */}
-      <section className="relative h-[50vh] md:h-[70vh] flex items-center justify-center mb-12 overflow-hidden">
+      {/* Hero Section - Reduced height */}
+      <section className="relative h-[30vh] md:h-[40vh] flex items-center justify-center mb-12 overflow-hidden">
         <div className="absolute inset-0 z-0">
           <Image 
             src="/YTBanner_v1.png" 
@@ -90,19 +124,19 @@ export default function Home() {
           <Image 
             src="/LiefLogoYT.png" 
             alt="Liefx Logo" 
-            width={150} 
-            height={150} 
-            className="mx-auto mb-6"
+            width={100} 
+            height={100} 
+            className="mx-auto mb-4"
           />
-          <h1 className="text-4xl md:text-6xl font-bold mb-4">KEEP GAMIN' HARD</h1>
-          <p className="text-xl md:text-2xl max-w-2xl mx-auto">
+          <h1 className="text-3xl md:text-5xl font-bold mb-3">KEEP GAMIN' HARD</h1>
+          <p className="text-lg md:text-xl max-w-2xl mx-auto">
             Rocket League host, Star Citizen enthusiast, and content creator
           </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-4">
-            <Link href="/content" className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300">
+          <div className="mt-6 flex flex-wrap justify-center gap-4">
+            <Link href="/content" className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
               Watch Content
             </Link>
-            <Link href="/game" className="bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300">
+            <Link href="/game" className="bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
               Play Daily Game
             </Link>
           </div>
@@ -182,11 +216,48 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Merch Preview */}
+      {/* Merch Preview - Updated to use real data */}
       <section className="mb-12 px-4">
         <h2 className="text-3xl font-bold mb-6 text-gray-800">Merch</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[1, 2, 3].map((item) => (
+          {merchProducts.map((product) => (
+            <div key={product.id} className="bg-white rounded-lg overflow-hidden shadow-lg">
+              <div className="relative h-64 bg-gray-200">
+                {product.images && product.images[0] ? (
+                  <Image 
+                    src={product.images[0].url}
+                    alt={product.name}
+                    fill
+                    className="object-cover"
+                    unoptimized={product.images[0].url.startsWith('http')}
+                  />
+                ) : (
+                  <div className="h-full flex items-center justify-center">
+                    <Image 
+                      src="/LiefLogoYT.png" 
+                      alt="Merch item" 
+                      width={100} 
+                      height={100}
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="p-4">
+                <h3 className="font-bold text-lg mb-1">{product.name}</h3>
+                {product.variants && product.variants[0] && (
+                  <p className="text-gray-600 mb-2">
+                    ${product.variants[0].unitPrice.value.toFixed(2)} {product.variants[0].unitPrice.currency}
+                  </p>
+                )}
+                <Link href={`/merch/${product.slug}`}>
+                  <button className="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 rounded transition duration-300">
+                    View Details
+                  </button>
+                </Link>
+              </div>
+            </div>
+          ))}
+          {merchProducts.length === 0 && [1, 2, 3].map((item) => (
             <div key={item} className="bg-white rounded-lg overflow-hidden shadow-lg">
               <div className="relative h-64 bg-gray-200 flex items-center justify-center">
                 <Image 
@@ -197,9 +268,9 @@ export default function Home() {
                 />
               </div>
               <div className="p-4">
-                <h3 className="font-bold text-lg mb-1">Liefx {item === 1 ? 'T-Shirt' : item === 2 ? 'Hoodie' : 'Hat'}</h3>
-                <p className="text-gray-600 mb-2">${item === 1 ? '24.99' : item === 2 ? '49.99' : '19.99'}</p>
-                <button className="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 rounded transition duration-300">
+                <h3 className="font-bold text-lg mb-1">Loading...</h3>
+                <p className="text-gray-600 mb-2">$XX.XX</p>
+                <button className="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 rounded transition duration-300 opacity-50" disabled>
                   View Details
                 </button>
               </div>
