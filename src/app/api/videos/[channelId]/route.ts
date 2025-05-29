@@ -12,10 +12,18 @@ export async function GET(
 
   console.log(`[YouTube API] Request received for channelId: ${channelId}`);
   console.log(`[YouTube API] API Key status: ${apiKey ? 'Present' : 'Missing'}`);
+  console.log(`[YouTube API] Environment:`, {
+    NODE_ENV: process.env.NODE_ENV,
+    VERCEL_ENV: process.env.VERCEL_ENV
+  });
 
   if (!apiKey) {
-    console.error("[YouTube API] ERROR: Missing YouTube API key. Make sure YOUTUBE_API_KEY is set in .env.local");
-    return NextResponse.json({ error: 'Missing YouTube API key' }, { status: 500 });
+    console.error("[YouTube API] ERROR: Missing YouTube API key. Make sure YOUTUBE_API_KEY is set in environment variables");
+    return NextResponse.json({ 
+      error: 'Missing YouTube API key',
+      env: process.env.NODE_ENV,
+      vercelEnv: process.env.VERCEL_ENV
+    }, { status: 500 });
   }
 
   if (!channelId) {

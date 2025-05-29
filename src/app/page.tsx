@@ -84,22 +84,9 @@ export default function Home() {
     };
 
     const fetchMerch = async () => {
-      const storefrontToken = process.env.NEXT_PUBLIC_FOURTHWALL_STOREFRONT_TOKEN;
-      console.log('Storefront Token:', storefrontToken ? 'Present' : 'Missing');
-      
-      if (!storefrontToken) {
-        console.error('Storefront token not configured');
-        return;
-      }
-
       try {
-        const apiUrl = `https://storefront-api.fourthwall.com/v1/products?storefront_token=${storefrontToken}`;
-        console.log('Fetching merch from:', apiUrl);
+        const res = await fetch('/api/merch');
         
-        const res = await fetch(apiUrl, {
-          cache: 'no-store'
-        });
-
         if (!res.ok) {
           const errorText = await res.text();
           console.error('Merch API Error:', errorText);
@@ -107,7 +94,7 @@ export default function Home() {
         }
 
         const data = await res.json();
-        console.log('Merch data fetched successfully:', data);
+        console.log('Merch data fetched successfully');
         setMerchProducts(data.products || []);
       } catch (error) {
         console.error('Error fetching merch:', error);
