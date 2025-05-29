@@ -50,18 +50,19 @@ export default function Home() {
         const latestVideos = await Promise.all(
           channels.map(async (channel) => {
             try {
+              console.log(`Fetching videos for channel ${channel.name}`);
               const response = await fetch(`/api/videos/${channel.id}`);
-              const data = await response.json();
-              
               if (!response.ok) {
-                console.error(`Error for ${channel.name}:`, data);
-                throw new Error(data.error || `Failed to fetch videos for ${channel.name}`);
+                const errorData = await response.json();
+                console.error(`Error for ${channel.name}:`, errorData);
+                throw new Error(errorData.error || `Failed to fetch videos for ${channel.name}`);
               }
-              
+              const data = await response.json();
+              console.log(`Successfully fetched videos for ${channel.name}:`, data);
               return data[0];
             } catch (channelError) {
               console.error(`Error fetching ${channel.name}:`, channelError);
-              return null; // Return null for failed channel instead of throwing
+              return null;
             }
           })
         );
@@ -69,26 +70,23 @@ export default function Home() {
         // Filter out any null results and set the featured content
         const validVideos = latestVideos.filter(video => video);
         if (validVideos.length === 0) {
-          setError('No videos could be loaded. This might be due to API limits - please try again later.');
+          setError('No videos could be loaded. Please check the API configuration.');
         } else if (validVideos.length < channels.length) {
           setError('Some channels could not be loaded, but showing available videos.');
         }
         setFeaturedContent(validVideos);
-      } catch (err) {
-        console.error('Error fetching videos:', err);
-        setError('Failed to load videos. This might be due to API limits - please try again later.');
+      } catch (error: any) {
+        console.error('Error fetching videos:', error);
+        setError(error.message || 'Failed to fetch videos');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchLatestVideos();
-  }, []);
-
-  // Add useEffect for merch
-  useEffect(() => {
     const fetchMerch = async () => {
       const storefrontToken = process.env.NEXT_PUBLIC_FOURTHWALL_STOREFRONT_TOKEN;
+      console.log('Storefront Token:', storefrontToken ? 'Present' : 'Missing');
+      
       if (!storefrontToken) {
         console.error('Storefront token not configured');
         return;
@@ -104,23 +102,19 @@ export default function Home() {
 
         if (!res.ok) {
           const errorText = await res.text();
-          console.error('API Error:', errorText);
+          console.error('Merch API Error:', errorText);
           throw new Error(`Failed to fetch merch (${res.status}): ${errorText}`);
         }
 
         const data = await res.json();
-        console.log('Merch fetched successfully:', data);
-
-        if (!data.results) {
-          throw new Error('Invalid API response format');
-        }
-
-        setMerchProducts(data.results.slice(0, 3)); // Get first 3 products
-      } catch (err) {
-        console.error('Error fetching merch:', err);
+        console.log('Merch data fetched successfully:', data);
+        setMerchProducts(data.products || []);
+      } catch (error) {
+        console.error('Error fetching merch:', error);
       }
     };
 
+    fetchLatestVideos();
     fetchMerch();
   }, []);
 

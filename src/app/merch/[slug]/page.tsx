@@ -1,4 +1,6 @@
 // src/app/merch/[slug]/page.tsx
+'use client';
+
 import React from 'react';
 // No need to import Link here unless you are linking away from this page
 
@@ -56,16 +58,16 @@ interface SingleProduct {
 
 // --- Server-side Data Fetching Function ---
 async function getProductDetails(slug: string): Promise<SingleProduct | null> {
-    const storefrontToken = process.env.FOURTHWALL_STOREFRONT_TOKEN;
+    const storefrontToken = process.env.NEXT_PUBLIC_FOURTHWALL_STOREFRONT_TOKEN;
 
     if (!storefrontToken) {
-        console.error(`Product Detail Error [${slug}]: FOURTHWALL_STOREFRONT_TOKEN environment variable is not set.`);
+        console.error(`Product Detail Error [${slug}]: NEXT_PUBLIC_FOURTHWALL_STOREFRONT_TOKEN environment variable is not set.`);
         // In production, you might want to throw an error or return a specific error object
         return null;
     }
 
     const apiUrl = `https://storefront-api.fourthwall.com/v1/products/${slug}?storefront_token=${storefrontToken}`;
-    console.log(`Workspaceing product details from: ${apiUrl}`); // Log API URL for debugging
+    console.log(`Fetching product details from: ${apiUrl}`); // Log API URL for debugging
 
     try {
         const res = await fetch(apiUrl, {
@@ -92,9 +94,26 @@ async function getProductDetails(slug: string): Promise<SingleProduct | null> {
 
 
 // --- The Page Component ---
-export default async function ProductDetailPage({ params }: { params: { slug: string } }) {
-    const { slug } = params; // Extract slug from URL parameters
-    const product = await getProductDetails(slug);
+export default function ProductDetailPage({ params }: { params: { slug: string } }) {
+    const [product, setProduct] = React.useState<SingleProduct | null>(null);
+    const [loading, setLoading] = React.useState(true);
+
+    React.useEffect(() => {
+        const loadProduct = async () => {
+            const productData = await getProductDetails(params.slug);
+            setProduct(productData);
+            setLoading(false);
+        };
+        loadProduct();
+    }, [params.slug]);
+
+    if (loading) {
+        return (
+            <div className="container mx-auto p-4 text-center">
+                <h1 className="text-2xl font-bold">Loading...</h1>
+            </div>
+        );
+    }
 
     // --- Handle Product Not Found or Error ---
     if (!product) {
