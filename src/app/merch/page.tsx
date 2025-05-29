@@ -29,6 +29,7 @@ export default function Merch() {
 
     // --- Environment Variable Access ---
     const storefrontToken = process.env.NEXT_PUBLIC_FOURTHWALL_STOREFRONT_TOKEN;
+    const checkoutDomain = process.env.NEXT_PUBLIC_FW_CHECKOUT; // Added for checkout URL
 
     // --- Effect for Initial Data Fetching & Loading Cart ID ---
     useEffect(() => {
@@ -63,7 +64,7 @@ export default function Merch() {
         setSelectedVariants(prev => ({ ...prev, [productId]: variantId }));
     }, []);
 
-    // --- Add to Cart Handler (With localStorage fix) ---
+    // --- Add to Cart Handler (Unchanged from previous version with localStorage fix) ---
     const handleAddToCart = async (variantId: string) => {
        if (!variantId) { alert("Please select a variant."); return; }
        setIsAddingToCart(variantId);
@@ -77,20 +78,12 @@ export default function Merch() {
                const createCartRes = await fetch(createCartApiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: [] }) });
                if (!createCartRes.ok) { throw new Error('Failed to create cart'); }
                const newCart: Cart = await createCartRes.json();
-               currentCartId = newCart.id; // Should be a string now
+               currentCartId = newCart.id;
                setCartId(currentCartId);
-
-               // --- FIX: Check if currentCartId is a string before saving ---
-               if (currentCartId) {
-                   localStorage.setItem('fourthwallCartId', currentCartId); // Save valid string ID
+               if (currentCartId) { // Check if ID is valid before saving
+                   localStorage.setItem('fourthwallCartId', currentCartId);
                    console.log("New cart created and ID saved:", currentCartId);
-               } else {
-                   // This case should ideally not happen if API behaves correctly
-                   console.error("Cart created, but ID received was invalid. Cannot save to localStorage.");
-                   throw new Error("Invalid Cart ID received after creation.");
-               }
-               // --- End FIX ---
-
+               } else { throw new Error("Invalid Cart ID received after creation."); }
            }
            if (!currentCartId) { throw new Error("Cart ID missing after creation attempt."); }
            console.log(`Adding variant ${variantId} to cart ${currentCartId}`);
@@ -104,20 +97,47 @@ export default function Merch() {
        finally { setIsAddingToCart(null); }
     };
 
-    // --- Checkout Handler (Simplified Redirect) ---
+
+    // --- Checkout Handler (Updated to construct URL) ---
      const handleCheckout = () => {
         setIsCheckingOut(true);
         setError(null);
-        if (!cartId) { alert("Your cart appears to be empty."); console.log("Checkout skipped, no local cartId found."); setIsCheckingOut(false); return; }
-        const standardCartUrl = `https://liefx-shop.fourthwall.com/cart`; // Assumed URL
+
+        if (!cartId) {
+            alert("Your cart appears to be empty.");
+            console.log("Checkout skipped, no local cartId found.");
+            setIsCheckingOut(false);
+            return;
+        }
+
+        if (!checkoutDomain) {
+             alert("Error: Checkout domain configuration missing.");
+             console.error("Checkout Error: NEXT_PUBLIC_FW_CHECKOUT environment variable is not set.");
+             setIsCheckingOut(false);
+             return;
+        }
+
+        // Construct the checkout URL based on documentation
+        const checkoutRedirectUrl = `https://${checkoutDomain}/checkout/?cartId=${cartId}`;
+        // Optionally add currency if needed: = `https://${checkoutDomain}/checkout/?cartCurrency=USD&cartId=${cartId}`;
+
         try {
-            console.log(`Redirecting to standard cart page: ${standardCartUrl}`);
-            window.location.href = standardCartUrl;
-        } catch (err: any) { console.error("Redirect failed unexpectedly:", err); alert("Could not redirect to checkout."); setIsCheckingOut(false); }
+            console.log(`Redirecting to constructed checkout URL: ${checkoutRedirectUrl}`);
+            // Redirect the user's browser
+            window.location.href = checkoutRedirectUrl;
+            // If redirect starts, the rest of the code might not execute.
+
+        } catch (err: any) {
+            // This catch block might not catch standard redirect issues
+            console.error("Redirect failed unexpectedly:", err);
+            alert("Could not redirect to checkout.");
+            setIsCheckingOut(false); // Reset state on failure
+        }
     };
     // --- End of Handlers ---
 
-    // --- Render Component ---
+
+    // --- Render Component (JSX is the same as previous version) ---
     if (isLoading) { return <div className="container mx-auto p-4"><h1 className="text-3xl font-bold mb-4">My Merch</h1><p>Loading...</p></div>; }
 
     return (

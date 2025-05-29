@@ -55,7 +55,7 @@ export default function Sidebar() {
 
 
   return (
-    <div className={`fixed left-0 top-0 h-full w-20 md:w-64 bg-gray-900 text-white transition-all duration-300 z-50 ${isScrolled ? 'shadow-xl' : ''}`}>
+    <div className={`fixed left-0 top-0 h-full w-20 md:w-64 bg-sidebar text-white transition-all duration-300 z-50 ${isScrolled ? 'shadow-xl' : ''}`}>
       <div className="flex flex-col h-full">
         {/* Logo */}
         <div className="p-4 flex justify-center md:justify-start">
