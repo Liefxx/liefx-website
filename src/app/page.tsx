@@ -5,50 +5,57 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 
 // Featured content type
-interface FeaturedContent {
-  type: 'youtube' | 'twitch';
+interface YouTubeVideo {
+  id: string;
   title: string;
   thumbnail: string;
-  link: string;
-  channel: string;
+  publishedAt: string;
+  viewCount: string;
+  channelTitle: string;
 }
 
 export default function Home() {
-  const [featuredContent, setFeaturedContent] = useState<FeaturedContent[]>([]);
+  const [featuredContent, setFeaturedContent] = useState<YouTubeVideo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const channels = [
+    { id: 'UC6PVHS7Iq-fJqMLpdebrhZQ', name: 'Liefx' },
+    { id: 'UCQ1MqH7fQKh428jtrHt3AqQ', name: 'LiefSC' },
+    { id: 'UCuoKmwfP_ZULNZi_FXlwpiA', name: 'LeafyLongplays' },
+    { id: 'UC6PVHS7Iq-fJqMLpdebrhZQ', name: 'Liefx Rocket League' } // You might want to update this ID
+  ];
   
   useEffect(() => {
-    // In a real implementation, this would fetch from YouTube/Twitch APIs
-    // For now, we'll use mock data
-    setFeaturedContent([
-      {
-        type: 'youtube',
-        title: 'Star Citizen Just Hit Its BIGGEST Milestone',
-        thumbnail: '/YTBanner_v1.png',
-        link: 'https://www.youtube.com/watch?v=fzhROQPjwQM',
-        channel: 'Liefx'
-      },
-      {
-        type: 'youtube',
-        title: 'Inside Star Citizen - Discussion + React',
-        thumbnail: '/YTBanner_v1.png',
-        link: 'https://www.youtube.com/watch?v=xEttxQlJ-bs',
-        channel: 'LiefSC'
-      },
-      {
-        type: 'twitch',
-        title: 'Rocket League RLCS Casting',
-        thumbnail: '/YTBanner_v1.png',
-        link: 'https://www.twitch.tv/Liefx',
-        channel: 'Liefx'
-      },
-      {
-        type: 'youtube',
-        title: 'Challenges of a Changing Esports Industry',
-        thumbnail: '/YTBanner_v1.png',
-        link: 'https://www.youtube.com/watch?v=FDNvxqvVT6E',
-        channel: 'LiefX Rocket League'
+    const fetchLatestVideos = async () => {
+      setLoading(true);
+      setError('');
+      
+      try {
+        // Fetch the latest video from each channel
+        const latestVideos = await Promise.all(
+          channels.map(async (channel) => {
+            const response = await fetch(`/api/videos/${channel.id}`);
+            if (!response.ok) {
+              throw new Error(`Failed to fetch videos for ${channel.name}`);
+            }
+            const videos = await response.json();
+            // Return only the first (most recent) video
+            return videos[0];
+          })
+        );
+
+        // Filter out any undefined results and set the featured content
+        setFeaturedContent(latestVideos.filter(video => video));
+      } catch (err) {
+        console.error('Error fetching videos:', err);
+        setError('Failed to load latest videos');
+      } finally {
+        setLoading(false);
       }
-    ]);
+    };
+
+    fetchLatestVideos();
   }, []);
 
   return (
@@ -91,40 +98,57 @@ export default function Home() {
 
       {/* Featured Content */}
       <section className="mb-12 px-4">
-        <h2 className="text-3xl font-bold mb-6 text-gray-800">Featured Content</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {featuredContent.map((item, index) => (
-            <a 
-              key={index} 
-              href={item.link} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="bg-white rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300"
-            >
-              <div className="relative h-48">
-                <Image 
-                  src={item.thumbnail} 
-                  alt={item.title} 
-                  fill 
-                  style={{ objectFit: 'cover' }}
-                />
-                {item.type === 'youtube' ? (
-                  <div className="absolute bottom-2 right-2 bg-red-600 text-white text-xs px-2 py-1 rounded">
-                    YouTube
+        <h2 className="text-3xl font-bold mb-6 text-gray-800">Latest Videos</h2>
+        
+        {/* Loading State */}
+        {loading && (
+          <div className="flex justify-center items-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-primary"></div>
+          </div>
+        )}
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-8">
+            <p className="text-yellow-700">{error}</p>
+          </div>
+        )}
+
+        {/* Videos Grid */}
+        {!loading && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {featuredContent.map((video) => (
+              <a
+                key={video.id}
+                href={`https://www.youtube.com/watch?v=${video.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow"
+              >
+                <div className="relative h-48">
+                  <Image
+                    src={video.thumbnail}
+                    alt={video.title}
+                    fill
+                    className="object-cover"
+                    unoptimized={video.thumbnail.startsWith('http')}
+                  />
+                  <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+                    {video.viewCount} views
                   </div>
-                ) : (
-                  <div className="absolute bottom-2 right-2 bg-purple-600 text-white text-xs px-2 py-1 rounded">
-                    Twitch
+                </div>
+                <div className="p-4">
+                  <h3 className="font-bold text-lg mb-1 line-clamp-2">{video.title}</h3>
+                  <div className="flex justify-between text-sm text-gray-500">
+                    <span>{video.channelTitle}</span>
+                    <span>{video.publishedAt}</span>
                   </div>
-                )}
-              </div>
-              <div className="p-4">
-                <h3 className="font-bold text-lg mb-1 line-clamp-2">{item.title}</h3>
-                <p className="text-gray-600 text-sm">{item.channel}</p>
-              </div>
-            </a>
-          ))}
-        </div>
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
+
         <div className="text-center mt-8">
           <Link href="/content" className="text-green-600 hover:text-green-800 font-semibold">
             View All Content →
