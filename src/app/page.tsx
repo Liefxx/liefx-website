@@ -89,13 +89,36 @@ export default function Home() {
   useEffect(() => {
     const fetchMerch = async () => {
       const storefrontToken = process.env.NEXT_PUBLIC_FOURTHWALL_STOREFRONT_TOKEN;
-      if (!storefrontToken) return;
+      if (!storefrontToken) {
+        console.error('Storefront token not configured');
+        return;
+      }
 
       try {
-        const apiUrl = `https://storefront-api.fourthwall.com/v1/products?storefront_token=${storefrontToken}`;
-        const res = await fetch(apiUrl, { cache: 'no-store' });
-        if (!res.ok) throw new Error('Failed to fetch merch');
+        const apiUrl = `https://storefront-api.fourthwall.com/api/shops/~/products?storefront_token=${storefrontToken}`;
+        console.log('Fetching merch from:', apiUrl);
+        
+        const res = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          },
+          cache: 'no-store'
+        });
+
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error('API Error:', errorText);
+          throw new Error(`Failed to fetch merch (${res.status}): ${errorText}`);
+        }
+
         const data = await res.json();
+        console.log('Merch fetched successfully:', data);
+
+        if (!data.results) {
+          throw new Error('Invalid API response format');
+        }
+
         setMerchProducts(data.results.slice(0, 3)); // Get first 3 products
       } catch (err) {
         console.error('Error fetching merch:', err);

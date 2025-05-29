@@ -44,26 +44,42 @@ export default function Merch() {
             setError(null);
 
             if (!storefrontToken) {
-                console.error("ERROR: Storefront token not configured.");
-                setError("Configuration error: Storefront token not configured.");
+                console.error("ERROR: Storefront token not configured properly:", storefrontToken);
+                setError("Configuration error: Storefront token not configured");
                 setIsLoading(false);
                 return;
             }
 
-            const apiUrl = `https://storefront-api.fourthwall.com/v1/products?storefront_token=${storefrontToken}`;
-            
             try {
-                const res = await fetch(apiUrl, { cache: 'no-store' });
+                const apiUrl = `https://storefront-api.fourthwall.com/api/shops/~/products?storefront_token=${storefrontToken}`;
+                console.log("Fetching products from:", apiUrl);
+                
+                const res = await fetch(apiUrl, { 
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                    },
+                    cache: 'no-store'
+                });
+
                 if (!res.ok) {
-                    throw new Error(`Failed to fetch products (${res.status})`);
+                    const errorText = await res.text();
+                    console.error("API Error:", errorText);
+                    throw new Error(`Failed to fetch products (${res.status}): ${errorText}`);
                 }
-                const data: ApiResponse = await res.json();
-                const fetchedProducts = data.results || [];
-                setProducts(fetchedProducts);
+
+                const data = await res.json();
+                console.log("Products fetched successfully:", data);
+                
+                if (!data.results) {
+                    throw new Error('Invalid API response format');
+                }
+
+                setProducts(data.results);
                 
                 // Initialize selected variants
                 const initialSelected: Record<string, string> = {};
-                fetchedProducts.forEach(product => {
+                data.results.forEach((product: Product) => {
                     if (product.variants && product.variants.length > 0) {
                         initialSelected[product.id] = product.variants[0].id;
                     }
