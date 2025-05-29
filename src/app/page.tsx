@@ -23,7 +23,7 @@ export default function Home() {
     { id: 'UC6PVHS7Iq-fJqMLpdebrhZQ', name: 'Liefx' },
     { id: 'UCQ1MqH7fQKh428jtrHt3AqQ', name: 'LiefSC' },
     { id: 'UCuoKmwfP_ZULNZi_FXlwpiA', name: 'LeafyLongplays' },
-    { id: 'UC6PVHS7Iq-fJqMLpdebrhZQ', name: 'Liefx Rocket League' } // You might want to update this ID
+    { id: 'UC5TQE2PAX0YKvnl-xZNgH0Q', name: 'Liefx Rocket League' }
   ];
   
   useEffect(() => {
@@ -35,21 +35,34 @@ export default function Home() {
         // Fetch the latest video from each channel
         const latestVideos = await Promise.all(
           channels.map(async (channel) => {
-            const response = await fetch(`/api/videos/${channel.id}`);
-            if (!response.ok) {
-              throw new Error(`Failed to fetch videos for ${channel.name}`);
+            try {
+              const response = await fetch(`/api/videos/${channel.id}`);
+              const data = await response.json();
+              
+              if (!response.ok) {
+                console.error(`Error for ${channel.name}:`, data);
+                throw new Error(data.error || `Failed to fetch videos for ${channel.name}`);
+              }
+              
+              return data[0];
+            } catch (channelError) {
+              console.error(`Error fetching ${channel.name}:`, channelError);
+              return null; // Return null for failed channel instead of throwing
             }
-            const videos = await response.json();
-            // Return only the first (most recent) video
-            return videos[0];
           })
         );
 
-        // Filter out any undefined results and set the featured content
-        setFeaturedContent(latestVideos.filter(video => video));
+        // Filter out any null results and set the featured content
+        const validVideos = latestVideos.filter(video => video);
+        if (validVideos.length === 0) {
+          setError('No videos could be loaded. This might be due to API limits - please try again later.');
+        } else if (validVideos.length < channels.length) {
+          setError('Some channels could not be loaded, but showing available videos.');
+        }
+        setFeaturedContent(validVideos);
       } catch (err) {
         console.error('Error fetching videos:', err);
-        setError('Failed to load latest videos');
+        setError('Failed to load videos. This might be due to API limits - please try again later.');
       } finally {
         setLoading(false);
       }
