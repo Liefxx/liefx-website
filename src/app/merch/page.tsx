@@ -51,14 +51,10 @@ export default function Merch() {
             }
 
             try {
-                const apiUrl = `https://storefront-api.fourthwall.com/api/shops/~/products?storefront_token=${storefrontToken}`;
+                const apiUrl = `https://storefront-api.fourthwall.com/v1/products?storefront_token=${storefrontToken}`;
                 console.log("Fetching products from:", apiUrl);
                 
                 const res = await fetch(apiUrl, { 
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                    },
                     cache: 'no-store'
                 });
 
