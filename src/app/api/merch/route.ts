@@ -10,7 +10,8 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        const apiUrl = `https://storefront-api.fourthwall.com/v1/products?storefront_token=${storefrontToken}`;
+        // Use the original working endpoint
+        const apiUrl = `https://shop.fourthwall.com/api/v1/shop/products?storefront_token=${storefrontToken}`;
         
         const res = await fetch(apiUrl, {
             cache: 'no-store'
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
     } catch (error: any) {
         console.error('Error fetching products:', error);
         return NextResponse.json(
-            { error: 'Failed to fetch products', message: error.message }, 
+            { error: 'Failed to fetch products' }, 
             { status: 500 }
         );
     }
