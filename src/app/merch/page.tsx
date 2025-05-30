@@ -58,7 +58,7 @@ export default function Merch() {
             }
 
             try {
-                const res = await fetch('/api/merch');
+                const res = await fetch('/api/merch/collections');
                 
                 if (!res.ok) {
                     const errorText = await res.text();

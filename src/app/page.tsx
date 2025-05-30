@@ -96,12 +96,17 @@ export default function Home() {
         const data = await res.json();
         console.log('Merch data fetched successfully:', data);
         
-        if (!data.products) {
-          console.error('No products array in response:', data);
+        if (!data.collections) {
+          console.error('No collections array in response:', data);
           throw new Error('Invalid API response format');
         }
         
-        setMerchProducts(data.products);
+        // Combine all products from all collections and take first 10
+        const allProducts = data.collections.reduce((acc: MerchProduct[], collection: any) => {
+          return acc.concat(collection.products);
+        }, []);
+        
+        setMerchProducts(allProducts);
       } catch (error) {
         console.error('Error fetching merch:', error);
         setMerchProducts([]); // Set empty array on error to avoid undefined

@@ -10,45 +10,18 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        const shopUrl = process.env.NEXT_PUBLIC_FW_CHECKOUT;
-        if (!shopUrl) {
-            throw new Error('Shop URL not configured');
+        const apiUrl = `https://storefront-api.fourthwall.com/v1/products?storefront_token=${storefrontToken}`;
+        
+        const res = await fetch(apiUrl, {
+            cache: 'no-store'
+        });
+
+        if (!res.ok) {
+            throw new Error('Failed to fetch products');
         }
 
-        // Fetch both collections
-        const collections = [
-            { id: 'leafy-longplays', name: 'Leafy Longplays Collection' },
-            { id: 'liefx', name: 'Liefx Collection' }
-        ];
-
-        const collectionsData = await Promise.all(collections.map(async (collection) => {
-            // Construct the RSS feed URL for each collection
-            const apiUrl = `https://${shopUrl}/collections/${collection.id}/.well-known/merchant-center/rss.xml`;
-            console.log('Fetching from:', apiUrl);
-            
-            const res = await fetch(apiUrl, {
-                cache: 'no-store',
-                headers: {
-                    'Accept': 'application/xml'
-                }
-            });
-
-            if (!res.ok) {
-                console.error(`Failed to fetch collection ${collection.id}:`, res.status);
-                return { id: collection.id, name: collection.name, products: [] };
-            }
-
-            const xmlText = await res.text();
-            const products = await parseProductsFromXML(xmlText);
-            
-            return {
-                id: collection.id,
-                name: collection.name,
-                products
-            };
-        }));
-        
-        return NextResponse.json({ collections: collectionsData });
+        const data = await res.json();
+        return NextResponse.json(data);
     } catch (error: any) {
         console.error('Error fetching products:', error);
         return NextResponse.json(
