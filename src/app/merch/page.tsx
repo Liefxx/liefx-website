@@ -102,13 +102,10 @@ export default function Merch() {
        try {
            if (!currentCartId) {
                console.log("Creating new cart...");
-               const createCartApiUrl = `https://api.fourthwall.com/api/public/v1.0/carts?storefront_token=${storefrontToken}`;
+               const createCartApiUrl = `https://storefront-api.fourthwall.com/v1/carts?storefront_token=${storefrontToken}`;
                const createCartRes = await fetch(createCartApiUrl, { 
                    method: 'POST', 
-                   headers: { 
-                       'Content-Type': 'application/json',
-                       'Accept': 'application/json'
-                   }, 
+                   headers: { 'Content-Type': 'application/json' }, 
                    body: JSON.stringify({ items: [] }) 
                });
                if (!createCartRes.ok) { throw new Error('Failed to create cart'); }
@@ -122,13 +119,10 @@ export default function Merch() {
            }
            if (!currentCartId) { throw new Error("Cart ID missing after creation attempt."); }
            console.log(`Adding variant ${variantId} to cart ${currentCartId}`);
-           const addToCartApiUrl = `https://api.fourthwall.com/api/public/v1.0/carts/${currentCartId}/add?storefront_token=${storefrontToken}`;
+           const addToCartApiUrl = `https://storefront-api.fourthwall.com/v1/carts/${currentCartId}/add?storefront_token=${storefrontToken}`;
            const addToCartRes = await fetch(addToCartApiUrl, { 
                method: 'POST', 
-               headers: { 
-                   'Content-Type': 'application/json',
-                   'Accept': 'application/json'
-               }, 
+               headers: { 'Content-Type': 'application/json' }, 
                body: JSON.stringify({ items: [{ variantId: variantId, quantity: 1 }] }) 
            });
            if (!addToCartRes.ok) { const text = await addToCartRes.text(); console.error(text); throw new Error('Failed to add item'); }

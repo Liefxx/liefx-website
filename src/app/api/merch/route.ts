@@ -14,14 +14,14 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        const apiUrl = `https://api.fourthwall.com/api/public/v1.0/products?storefront_token=${storefrontToken}`;
+        // Revert back to the original working storefront API endpoint
+        const apiUrl = `https://storefront-api.fourthwall.com/v1/products?storefront_token=${storefrontToken}`;
         console.log('[Merch API] Fetching products from:', apiUrl);
         
         const res = await fetch(apiUrl, {
             cache: 'no-store',
             headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
+                'Accept': 'application/json'
             }
         });
 
@@ -41,7 +41,8 @@ export async function GET(request: NextRequest) {
         const data = await res.json();
         console.log('[Merch API] Products fetched successfully');
         
-        return NextResponse.json({ products: data.results || [] });
+        // Return the data as it was originally structured
+        return NextResponse.json(data);
     } catch (error: any) {
         console.error('[Merch API] Unexpected error:', error);
         return NextResponse.json(
