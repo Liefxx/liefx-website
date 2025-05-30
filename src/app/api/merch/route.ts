@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        const apiUrl = `https://storefront-api.fourthwall.com/v1/products?storefront_token=${storefrontToken}`;
+        const apiUrl = `https://api.fourthwall.com/api/public/v1.0/products?storefront_token=${storefrontToken}`;
         console.log('[Merch API] Fetching products from:', apiUrl);
         
         const res = await fetch(apiUrl, {
