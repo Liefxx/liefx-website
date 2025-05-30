@@ -227,7 +227,7 @@ export default function Home() {
       <section className="mb-12 px-4">
         <h2 className="text-3xl font-bold mb-6 text-gray-800">Merch</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {merchProducts.map((product) => (
+          {merchProducts.slice(0, 10).map((product) => (
             <div key={product.id} className="bg-white rounded-lg overflow-hidden shadow-lg">
               <div className="relative h-64 bg-gray-200">
                 {product.images && product.images[0] ? (
