@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 // --- Interfaces (same as before) ---
 interface Money { value: number; currency: string; }
@@ -14,18 +15,24 @@ interface Product { id: string; name: string; slug: string; description: string;
 interface ApiResponse { results: Product[]; paging?: any; }
 // Basic Cart interface, assuming newCart.id is string
 interface Cart { id: string; items: any[]; checkoutUrl?: string; }
+interface Collection {
+    id: string;
+    name: string;
+    products: Product[];
+}
 // --- End of Interfaces ---
 
 
 export default function Merch() {
     // --- State Variables ---
-    const [products, setProducts] = useState<Product[] | null>(null);
+    const [collections, setCollections] = useState<Collection[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [cartId, setCartId] = useState<string | null>(null);
     const [isAddingToCart, setIsAddingToCart] = useState<string | null>(null);
     const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
     const [isCheckingOut, setIsCheckingOut] = useState<boolean>(false);
+    const [expandedCollections, setExpandedCollections] = useState<Record<string, boolean>>({});
 
     // --- Environment Variable Access ---
     const storefrontToken = process.env.NEXT_PUBLIC_FOURTHWALL_STOREFRONT_TOKEN;
@@ -60,22 +67,31 @@ export default function Merch() {
                 }
 
                 const data = await res.json();
-                console.log("Products fetched successfully:", data);
+                console.log("Collections fetched successfully:", data);
                 
-                if (!data.products) {
+                if (!data.collections) {
                     throw new Error('Invalid API response format');
                 }
 
-                setProducts(data.products);
+                setCollections(data.collections);
                 
                 // Initialize selected variants
                 const initialSelected: Record<string, string> = {};
-                data.products.forEach((product: Product) => {
-                    if (product.variants && product.variants.length > 0) {
-                        initialSelected[product.id] = product.variants[0].id;
-                    }
+                data.collections.forEach((collection: Collection) => {
+                    collection.products.forEach((product: Product) => {
+                        if (product.variants && product.variants.length > 0) {
+                            initialSelected[product.id] = product.variants[0].id;
+                        }
+                    });
                 });
                 setSelectedVariants(initialSelected);
+
+                // Initialize expanded state for each collection
+                const initialExpandedState: Record<string, boolean> = {};
+                data.collections.forEach((collection: Collection) => {
+                    initialExpandedState[collection.id] = false;
+                });
+                setExpandedCollections(initialExpandedState);
             } catch (fetchError: any) {
                 console.error("Fetch error:", fetchError);
                 setError(`Failed to load products: ${fetchError.message}`);
@@ -170,51 +186,95 @@ export default function Merch() {
             setIsCheckingOut(false); // Reset state on failure
         }
     };
-    // --- End of Handlers ---
 
+    const toggleCollection = (collectionId: string) => {
+        setExpandedCollections(prev => ({
+            ...prev,
+            [collectionId]: !prev[collectionId]
+        }));
+    };
 
     // --- Render Component (JSX is the same as previous version) ---
-    if (isLoading) { return <div className="container mx-auto p-4"><h1 className="text-3xl font-bold mb-4">My Merch</h1><p>Loading...</p></div>; }
+    if (isLoading) {
+        return (
+            <div className="container mx-auto p-4">
+                <h1 className="text-3xl font-bold mb-4">Merch Store</h1>
+                <div className="flex justify-center items-center py-20">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="container mx-auto p-4">
+                <h1 className="text-3xl font-bold mb-4">Merch Store</h1>
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+                    {error}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="container mx-auto p-4">
-            {/* Header */}
-            <div className="flex justify-between items-center mb-6 border-b pb-4">
-                <h1 className="text-3xl font-bold">My Merch</h1>
-                {cartId && ( <button onClick={handleCheckout} disabled={isCheckingOut} className={`bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded text-sm transition-colors duration-200 ${isCheckingOut ? 'opacity-50 cursor-not-allowed' : ''}`} > {isCheckingOut ? 'Redirecting...' : 'View Cart / Checkout'} </button> )}
-            </div>
-            {/* Error Display */}
-            {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">{error}</div>}
-            {/* Product Grid / No Products */}
-            {(!products || products.length === 0) && !isLoading && ( <p>No products found.</p> )}
-            {products && products.length > 0 && (
-                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                     {products.map((product) => {
-                         const currentSelectedVariantId = selectedVariants[product.id];
-                         const selectedVariant = product.variants?.find(v => v.id === currentSelectedVariantId);
-                         const isSelectedOutOfStock = selectedVariant?.stock?.type === 'Limited' && selectedVariant?.stock?.inStock !== undefined && selectedVariant?.stock?.inStock <= 0;
-                         return (
-                             <div key={product.id} className="border border-gray-200 rounded-lg p-4 flex flex-col shadow-md hover:shadow-lg transition-shadow duration-200">
-                                 {/* Image */}
-                                 {product.images && product.images.length > 0 && ( <div className="w-full h-48 mb-4 overflow-hidden rounded"><img src={product.images[0].url} alt={product.name} className="w-full h-full object-cover" /></div> )}
-                                 {/* Details */}
-                                 <h2 className="text-xl font-semibold mb-2">{product.name}</h2>
-                                 <p className="text-gray-600 mb-3 text-sm flex-grow">{product.description?.substring(0, 100)}{product.description?.length > 100 ? '...' : ''}</p>
-                                 {/* Variant Selection */}
-                                 {product.variants && product.variants.length > 1 && ( <div className="mb-3"><label htmlFor={`variant-select-${product.id}`} className="block text-sm font-medium text-gray-700 mb-1">Options:</label><select id={`variant-select-${product.id}`} name="variant" value={currentSelectedVariantId || ''} onChange={(e) => handleVariantChange(product.id, e.target.value)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">{product.variants.map(variant => ( <option key={variant.id} value={variant.id}>{variant.attributes.description || variant.name}</option> ))} </select> </div> )}
-                                 {/* Price & Stock */}
-                                 {selectedVariant && ( <p className="font-bold text-lg mb-1">${selectedVariant.unitPrice.value.toFixed(2)} {selectedVariant.unitPrice.currency}</p> )}
-                                 {selectedVariant?.stock?.type === 'Limited' && selectedVariant?.stock?.inStock !== undefined && ( <p className={`text-sm mb-3 ${isSelectedOutOfStock ? 'text-red-500' : 'text-green-600'}`}>{isSelectedOutOfStock ? 'Out of Stock' : `${selectedVariant.stock.inStock} left`}</p> )}
-                                 {/* Buttons */}
-                                 <div className="mt-auto pt-3">
-                                     <Link href={`/merch/${product.slug}`} passHref><button className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded mb-2 text-sm transition-colors duration-200">View Details</button></Link>
-                                     <button onClick={() => handleAddToCart(currentSelectedVariantId)} disabled={!currentSelectedVariantId || isSelectedOutOfStock || isAddingToCart === currentSelectedVariantId} className={`w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded text-sm transition-colors duration-200 ${!currentSelectedVariantId || isSelectedOutOfStock || isAddingToCart === currentSelectedVariantId ? 'opacity-50 cursor-not-allowed' : ''}`} >{isAddingToCart === currentSelectedVariantId ? 'Adding...' : 'Add to Cart'}</button>
-                                 </div>
-                             </div>
-                         )
-                     })}
-                 </div>
-             )}
+            <h1 className="text-3xl font-bold mb-8">Merch Store</h1>
+
+            {collections.map((collection, index) => (
+                <div key={collection.id} className={`mb-12 ${index > 0 ? 'border-t pt-12' : ''}`}>
+                    <h2 className="text-2xl font-bold mb-6">{collection.name}</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                        {(expandedCollections[collection.id] ? collection.products : collection.products.slice(0, 10)).map((product) => {
+                            const currentSelectedVariantId = selectedVariants[product.id];
+                            const selectedVariant = product.variants?.find(v => v.id === currentSelectedVariantId);
+                            const isSelectedOutOfStock = selectedVariant?.stock?.type === 'Limited' && selectedVariant?.stock?.inStock !== undefined && selectedVariant?.stock?.inStock <= 0;
+                            return (
+                                <div key={product.id} className="bg-white rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-200">
+                                    <div className="relative h-64">
+                                        {product.images && product.images[0] ? (
+                                            <Image
+                                                src={product.images[0].url}
+                                                alt={product.name}
+                                                fill
+                                                className="object-cover"
+                                                unoptimized={true}
+                                            />
+                                        ) : (
+                                            <div className="h-full flex items-center justify-center bg-gray-100">
+                                                <span className="text-gray-400">No image</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="p-4">
+                                        <h3 className="font-bold text-lg mb-2 line-clamp-1">{product.name}</h3>
+                                        {product.variants && product.variants[0] && (
+                                            <p className="text-gray-600 mb-4">
+                                                ${product.variants[0].unitPrice.value.toFixed(2)} {product.variants[0].unitPrice.currency}
+                                            </p>
+                                        )}
+                                        <Link href={`/merch/${product.slug}`}>
+                                            <button className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition duration-200">
+                                                View Details
+                                            </button>
+                                        </Link>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    {collection.products.length > 10 && (
+                        <div className="text-center mt-8">
+                            <button
+                                onClick={() => toggleCollection(collection.id)}
+                                className="inline-block bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg transition duration-200"
+                            >
+                                {expandedCollections[collection.id] ? 'Show Less' : `Show More ${collection.name} Items`}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            ))}
         </div>
     );
 }
