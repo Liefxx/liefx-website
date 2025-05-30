@@ -96,17 +96,13 @@ export default function Home() {
         const data = await res.json();
         console.log('Merch data fetched successfully:', data);
         
-        if (!data.collections) {
-          console.error('No collections array in response:', data);
+        if (!data.products) {
+          console.error('No products array in response:', data);
           throw new Error('Invalid API response format');
         }
         
-        // Combine all products from all collections and take first 10
-        const allProducts = data.collections.reduce((acc: MerchProduct[], collection: any) => {
-          return acc.concat(collection.products);
-        }, []);
-        
-        setMerchProducts(allProducts);
+        // Limit to 10 items
+        setMerchProducts(data.products.slice(0, 10));
       } catch (error) {
         console.error('Error fetching merch:', error);
         setMerchProducts([]); // Set empty array on error to avoid undefined
@@ -232,7 +228,7 @@ export default function Home() {
       <section className="mb-12 px-4">
         <h2 className="text-3xl font-bold mb-6 text-gray-800">Merch</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {merchProducts.slice(0, 10).map((product) => (
+          {merchProducts.map((product) => (
             <div key={product.id} className="bg-white rounded-lg overflow-hidden shadow-lg">
               <div className="relative h-64 bg-gray-200">
                 {product.images && product.images[0] ? (

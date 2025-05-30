@@ -3,7 +3,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 
 // --- Interfaces (same as before) ---
 interface Money { value: number; currency: string; }
@@ -15,6 +14,8 @@ interface Product { id: string; name: string; slug: string; description: string;
 interface ApiResponse { results: Product[]; paging?: any; }
 // Basic Cart interface, assuming newCart.id is string
 interface Cart { id: string; items: any[]; checkoutUrl?: string; }
+// --- End of Interfaces ---
+
 
 export default function Merch() {
     // --- State Variables ---
@@ -91,7 +92,7 @@ export default function Merch() {
         setSelectedVariants(prev => ({ ...prev, [productId]: variantId }));
     }, []);
 
-    // --- Add to Cart Handler ---
+    // --- Add to Cart Handler (Unchanged from previous version with localStorage fix) ---
     const handleAddToCart = async (variantId: string) => {
        if (!variantId) { alert("Please select a variant."); return; }
        setIsAddingToCart(variantId);
@@ -132,8 +133,9 @@ export default function Merch() {
        finally { setIsAddingToCart(null); }
     };
 
-    // --- Checkout Handler ---
-    const handleCheckout = () => {
+
+    // --- Checkout Handler (Updated to construct URL) ---
+     const handleCheckout = () => {
         setIsCheckingOut(true);
         setError(null);
 
@@ -145,126 +147,74 @@ export default function Merch() {
         }
 
         if (!checkoutDomain) {
-            alert("Error: Checkout domain configuration missing.");
-            console.error("Checkout Error: NEXT_PUBLIC_FW_CHECKOUT environment variable is not set.");
-            setIsCheckingOut(false);
-            return;
+             alert("Error: Checkout domain configuration missing.");
+             console.error("Checkout Error: NEXT_PUBLIC_FW_CHECKOUT environment variable is not set.");
+             setIsCheckingOut(false);
+             return;
         }
 
         // Construct the checkout URL based on documentation
         const checkoutRedirectUrl = `https://${checkoutDomain}/checkout/?cartId=${cartId}`;
+        // Optionally add currency if needed: = `https://${checkoutDomain}/checkout/?cartCurrency=USD&cartId=${cartId}`;
 
         try {
             console.log(`Redirecting to constructed checkout URL: ${checkoutRedirectUrl}`);
+            // Redirect the user's browser
             window.location.href = checkoutRedirectUrl;
+            // If redirect starts, the rest of the code might not execute.
+
         } catch (err: any) {
+            // This catch block might not catch standard redirect issues
             console.error("Redirect failed unexpectedly:", err);
             alert("Could not redirect to checkout.");
-            setIsCheckingOut(false);
+            setIsCheckingOut(false); // Reset state on failure
         }
     };
+    // --- End of Handlers ---
 
-    if (isLoading) {
-        return (
-            <div className="container mx-auto p-4">
-                <h1 className="text-3xl font-bold mb-4">My Merch</h1>
-                <div className="flex justify-center items-center py-20">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
-                </div>
-            </div>
-        );
-    }
 
-    if (error) {
-        return (
-            <div className="container mx-auto p-4">
-                <h1 className="text-3xl font-bold mb-4">My Merch</h1>
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
-                    {error}
-                </div>
-            </div>
-        );
-    }
+    // --- Render Component (JSX is the same as previous version) ---
+    if (isLoading) { return <div className="container mx-auto p-4"><h1 className="text-3xl font-bold mb-4">My Merch</h1><p>Loading...</p></div>; }
 
     return (
         <div className="container mx-auto p-4">
             {/* Header */}
             <div className="flex justify-between items-center mb-6 border-b pb-4">
                 <h1 className="text-3xl font-bold">My Merch</h1>
-                {cartId && (
-                    <button
-                        onClick={handleCheckout}
-                        disabled={isCheckingOut}
-                        className={`bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded text-sm transition-colors duration-200 ${isCheckingOut ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                        {isCheckingOut ? 'Redirecting...' : 'View Cart / Checkout'}
-                    </button>
-                )}
+                {cartId && ( <button onClick={handleCheckout} disabled={isCheckingOut} className={`bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded text-sm transition-colors duration-200 ${isCheckingOut ? 'opacity-50 cursor-not-allowed' : ''}`} > {isCheckingOut ? 'Redirecting...' : 'View Cart / Checkout'} </button> )}
             </div>
-
-            {/* Product Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {products && products.map((product) => {
-                    const currentSelectedVariantId = selectedVariants[product.id];
-                    const selectedVariant = product.variants?.find(v => v.id === currentSelectedVariantId);
-                    const isSelectedOutOfStock = selectedVariant?.stock?.type === 'Limited' && selectedVariant?.stock?.inStock !== undefined && selectedVariant?.stock?.inStock <= 0;
-
-                    return (
-                        <div key={product.id} className="bg-white rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-200">
-                            <div className="relative h-64">
-                                {product.images && product.images[0] ? (
-                                    <Image
-                                        src={product.images[0].url}
-                                        alt={product.name}
-                                        fill
-                                        className="object-cover"
-                                        unoptimized={true}
-                                    />
-                                ) : (
-                                    <div className="h-full flex items-center justify-center bg-gray-100">
-                                        <span className="text-gray-400">No image</span>
-                                    </div>
-                                )}
-                            </div>
-                            <div className="p-4">
-                                <h3 className="font-bold text-lg mb-2 line-clamp-1">{product.name}</h3>
-                                {product.variants && product.variants[0] && (
-                                    <p className="text-gray-600 mb-4">
-                                        ${product.variants[0].unitPrice.value.toFixed(2)} {product.variants[0].unitPrice.currency}
-                                    </p>
-                                )}
-                                <div className="space-y-2">
-                                    {product.variants && product.variants.length > 1 && (
-                                        <select
-                                            value={currentSelectedVariantId || ''}
-                                            onChange={(e) => handleVariantChange(product.id, e.target.value)}
-                                            className="w-full p-2 border rounded mb-2"
-                                        >
-                                            {product.variants.map(variant => (
-                                                <option key={variant.id} value={variant.id}>
-                                                    {variant.attributes.description || variant.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    )}
-                                    <button
-                                        onClick={() => handleAddToCart(currentSelectedVariantId)}
-                                        disabled={!currentSelectedVariantId || isSelectedOutOfStock || isAddingToCart === currentSelectedVariantId}
-                                        className={`w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition duration-200 ${(!currentSelectedVariantId || isSelectedOutOfStock || isAddingToCart === currentSelectedVariantId) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    >
-                                        {isAddingToCart === currentSelectedVariantId ? 'Adding...' : 'Add to Cart'}
-                                    </button>
-                                    <Link href={`/merch/${product.slug}`}>
-                                        <button className="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition duration-200">
-                                            View Details
-                                        </button>
-                                    </Link>
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
+            {/* Error Display */}
+            {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">{error}</div>}
+            {/* Product Grid / No Products */}
+            {(!products || products.length === 0) && !isLoading && ( <p>No products found.</p> )}
+            {products && products.length > 0 && (
+                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                     {products.map((product) => {
+                         const currentSelectedVariantId = selectedVariants[product.id];
+                         const selectedVariant = product.variants?.find(v => v.id === currentSelectedVariantId);
+                         const isSelectedOutOfStock = selectedVariant?.stock?.type === 'Limited' && selectedVariant?.stock?.inStock !== undefined && selectedVariant?.stock?.inStock <= 0;
+                         return (
+                             <div key={product.id} className="border border-gray-200 rounded-lg p-4 flex flex-col shadow-md hover:shadow-lg transition-shadow duration-200">
+                                 {/* Image */}
+                                 {product.images && product.images.length > 0 && ( <div className="w-full h-48 mb-4 overflow-hidden rounded"><img src={product.images[0].url} alt={product.name} className="w-full h-full object-cover" /></div> )}
+                                 {/* Details */}
+                                 <h2 className="text-xl font-semibold mb-2">{product.name}</h2>
+                                 <p className="text-gray-600 mb-3 text-sm flex-grow">{product.description?.substring(0, 100)}{product.description?.length > 100 ? '...' : ''}</p>
+                                 {/* Variant Selection */}
+                                 {product.variants && product.variants.length > 1 && ( <div className="mb-3"><label htmlFor={`variant-select-${product.id}`} className="block text-sm font-medium text-gray-700 mb-1">Options:</label><select id={`variant-select-${product.id}`} name="variant" value={currentSelectedVariantId || ''} onChange={(e) => handleVariantChange(product.id, e.target.value)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">{product.variants.map(variant => ( <option key={variant.id} value={variant.id}>{variant.attributes.description || variant.name}</option> ))} </select> </div> )}
+                                 {/* Price & Stock */}
+                                 {selectedVariant && ( <p className="font-bold text-lg mb-1">${selectedVariant.unitPrice.value.toFixed(2)} {selectedVariant.unitPrice.currency}</p> )}
+                                 {selectedVariant?.stock?.type === 'Limited' && selectedVariant?.stock?.inStock !== undefined && ( <p className={`text-sm mb-3 ${isSelectedOutOfStock ? 'text-red-500' : 'text-green-600'}`}>{isSelectedOutOfStock ? 'Out of Stock' : `${selectedVariant.stock.inStock} left`}</p> )}
+                                 {/* Buttons */}
+                                 <div className="mt-auto pt-3">
+                                     <Link href={`/merch/${product.slug}`} passHref><button className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded mb-2 text-sm transition-colors duration-200">View Details</button></Link>
+                                     <button onClick={() => handleAddToCart(currentSelectedVariantId)} disabled={!currentSelectedVariantId || isSelectedOutOfStock || isAddingToCart === currentSelectedVariantId} className={`w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded text-sm transition-colors duration-200 ${!currentSelectedVariantId || isSelectedOutOfStock || isAddingToCart === currentSelectedVariantId ? 'opacity-50 cursor-not-allowed' : ''}`} >{isAddingToCart === currentSelectedVariantId ? 'Adding...' : 'Add to Cart'}</button>
+                                 </div>
+                             </div>
+                         )
+                     })}
+                 </div>
+             )}
         </div>
     );
 }
