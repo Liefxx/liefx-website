@@ -12,8 +12,7 @@ module.exports = {
           primary: '#2ecc71',
           secondary: '#27ae60',
           accent: '#1abc9c',
-        },
-        sidebar: '#0ea32b',
+        }
       },
     },
   },
