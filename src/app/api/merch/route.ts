@@ -10,13 +10,10 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        const apiUrl = `https://storefront-api.fourthwall.com/v1/products?storefront_token=${storefrontToken}`;
+        const apiUrl = `https://shop.fourthwall.com/api/v1/shop/products?storefront_token=${storefrontToken}`;
         
         const res = await fetch(apiUrl, {
-            cache: 'no-store',
-            headers: {
-                'Accept': 'application/json'
-            }
+            cache: 'no-store'
         });
 
         if (!res.ok) {
@@ -24,7 +21,7 @@ export async function GET(request: NextRequest) {
         }
 
         const data = await res.json();
-        return NextResponse.json({ products: data.products });
+        return NextResponse.json(data);
     } catch (error: any) {
         return NextResponse.json(
             { error: 'Failed to fetch products' }, 
