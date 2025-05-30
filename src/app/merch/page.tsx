@@ -51,13 +51,8 @@ export default function Merch() {
             }
 
             try {
-                const apiUrl = `https://storefront-api.fourthwall.com/v1/products?storefront_token=${storefrontToken}`;
-                console.log("Fetching products from:", apiUrl);
+                const res = await fetch('/api/merch');
                 
-                const res = await fetch(apiUrl, { 
-                    cache: 'no-store'
-                });
-
                 if (!res.ok) {
                     const errorText = await res.text();
                     console.error("API Error:", errorText);
@@ -67,15 +62,15 @@ export default function Merch() {
                 const data = await res.json();
                 console.log("Products fetched successfully:", data);
                 
-                if (!data.results) {
+                if (!data.products) {
                     throw new Error('Invalid API response format');
                 }
 
-                setProducts(data.results);
+                setProducts(data.products);
                 
                 // Initialize selected variants
                 const initialSelected: Record<string, string> = {};
-                data.results.forEach((product: Product) => {
+                data.products.forEach((product: Product) => {
                     if (product.variants && product.variants.length > 0) {
                         initialSelected[product.id] = product.variants[0].id;
                     }

@@ -94,10 +94,17 @@ export default function Home() {
         }
 
         const data = await res.json();
-        console.log('Merch data fetched successfully');
-        setMerchProducts(data.products || []);
+        console.log('Merch data fetched successfully:', data);
+        
+        if (!data.products) {
+          console.error('No products array in response:', data);
+          throw new Error('Invalid API response format');
+        }
+        
+        setMerchProducts(data.products);
       } catch (error) {
         console.error('Error fetching merch:', error);
+        setMerchProducts([]); // Set empty array on error to avoid undefined
       }
     };
 
@@ -163,23 +170,23 @@ export default function Home() {
 
         {/* Videos Grid */}
         {!loading && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {featuredContent.map((video) => (
-              <a
+            <a 
                 key={video.id}
                 href={`https://www.youtube.com/watch?v=${video.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
+              target="_blank" 
+              rel="noopener noreferrer"
                 className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow"
-              >
-                <div className="relative h-48">
-                  <Image
+            >
+              <div className="relative h-48">
+                <Image 
                     src={video.thumbnail}
                     alt={video.title}
-                    fill
+                  fill 
                     className="object-cover"
                     unoptimized={video.thumbnail.startsWith('http')}
-                  />
+                />
                   <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
                     {video.viewCount} views
                   </div>
@@ -190,10 +197,10 @@ export default function Home() {
                     <span>{video.channelTitle}</span>
                     <span>{video.publishedAt}</span>
                   </div>
-                </div>
-              </a>
-            ))}
-          </div>
+              </div>
+            </a>
+          ))}
+        </div>
         )}
 
         <div className="text-center mt-8">
@@ -229,7 +236,7 @@ export default function Home() {
                     alt={product.name}
                     fill
                     className="object-cover"
-                    unoptimized={product.images[0].url.startsWith('http')}
+                    unoptimized={true}
                   />
                 ) : (
                   <div className="h-full flex items-center justify-center">
@@ -246,7 +253,7 @@ export default function Home() {
                 <h3 className="font-bold text-lg mb-1">{product.name}</h3>
                 {product.variants && product.variants[0] && (
                   <p className="text-gray-600 mb-2">
-                    ${product.variants[0].unitPrice.value.toFixed(2)} {product.variants[0].unitPrice.currency}
+                    ${(product.variants[0].unitPrice.value || 0).toFixed(2)} {product.variants[0].unitPrice.currency}
                   </p>
                 )}
                 <Link href={`/merch/${product.slug}`}>
